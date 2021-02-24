@@ -207,6 +207,9 @@ class MainWindow(QMainWindow, WindowMixin):
         quit = action(getStr('quit'), self.close,
                       'Ctrl+Q', 'quit', getStr('quitApp'))
 
+        # autoLabel = action(getStr('autoLabel'), self.openFile,
+        #               'Ctrl+l', 'autoLabel', getStr('autoLabelDetail'))
+
         open = action(getStr('openFile'), self.openFile,
                       'Ctrl+O', 'open', getStr('openFileDetail'))
 
