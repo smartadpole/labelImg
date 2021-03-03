@@ -1,4 +1,8 @@
 LabelImg
+
+## reqiirments
+for detect model: need `config/class_names.txt` for labels;   
+
 ========
 
 .. image:: https://img.shields.io/pypi/v/labelimg.svg

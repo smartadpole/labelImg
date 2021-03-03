@@ -48,6 +48,12 @@ from libs.create_ml_io import CreateMLReader
 from libs.create_ml_io import JSON_EXT
 from libs.ustr import ustr
 from libs.hashableQListWidgetItem import HashableQListWidgetItem
+from libs.detector.ssd.model import ONNXModel
+from libs.detector.ssd.postprocess.ssd import PostProcessor
+import numpy as np
+import cv2
+
+from libs.detector.ssd.postprocess.ssd import IMAGE_SIZE, PIXEL_MEAN, THRESHOLD
 
 __appname__ = 'labelImg'
 
@@ -77,6 +83,10 @@ class MainWindow(QMainWindow, WindowMixin):
     def __init__(self, defaultFilename=None, defaultPrefdefClassFile=None, defaultSaveDir=None):
         super(MainWindow, self).__init__()
         self.setWindowTitle(__appname__)
+
+        self.class_name_file_4_detect = "config/class_names.txt"
+        self.model_file_4_detect = "config/model.onnx"
+        self._initDetect()
 
         # Load setting in the main thread
         self.settings = Settings()
@@ -507,6 +517,24 @@ class MainWindow(QMainWindow, WindowMixin):
         # Open Dir if deafult file
         if self.filePath and os.path.isdir(self.filePath):
             self.openDirDialog(dirpath=self.filePath, silent=True)
+
+    def _loadClassNames4Detect(self):
+        if os.path.isfile(self.class_name_file_4_detect):
+            self.class_names_4_detect = [name.strip('\n')for name in open(self.class_name_file_4_detect).readlines()]
+        else:
+            raise IOError("no such file {}".format(self.class_name_file4detect))
+
+    def _initModel(self):
+        if os.path.isfile(self.model_file_4_detect):
+            self.net = ONNXModel(self.model_file_4_detect)
+        else:
+            raise IOError("no such file {}".format(self.model_file_4_detect))
+
+    def _initDetect(self):
+        self._loadClassNames4Detect()
+        self._initModel()
+
+        return self
 
     def keyReleaseEvent(self, event):
         if event.key() == Qt.Key_Control:
@@ -1367,8 +1395,42 @@ class MainWindow(QMainWindow, WindowMixin):
                 filename = filename[0]
             self.loadFile(filename)
 
+    def _preprocess(self, image):
+        img_resize = cv2.resize(image, (IMAGE_SIZE, IMAGE_SIZE), interpolation = cv2.INTER_CUBIC)
+        image = (img_resize - PIXEL_MEAN).astype(np.float32).transpose((2, 0, 1))[np.newaxis, ::]
+
+        return image
+
+    def _loadImage4Detect(self):
+        image = self.image
+        size = image.size()
+        s = image.bits().asstring(size.width() * size.height() * image.depth() // 8)  # format 0xffRRGGBB
+        image = np.fromstring(s, dtype=np.uint8).reshape((size.height(), size.width(), image.depth() // 8))
+        # image_org = cv2.imread(self.filePath)
+        # gray = cv2.cvtColor(image_org, cv2.COLOR_BGR2GRAY)
+        gray = image[:, :, 0]
+        gray = cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB)
+
+        return gray
+
     def autoLabel(self):
-        print("auto")
+        image = self._loadImage4Detect()
+        image = self._preprocess(image)
+        out = self.net.forward(image)
+        results_batch =  PostProcessor(out[0], out[1], out[2])
+
+        # TODO : get rect
+        for result in results_batch:
+            if len(result) > 0:
+                result = result.tolist()
+                for r in result:
+                    x, y, x2, y2, label, score = r
+                    x, y, x2, y2, label = int(x), int(y), int(x2), int(y2), int(label)
+                    if score < THRESHOLD[label] or label == 0:
+                        continue
+                    cv2.rectangle(image, (x, y), (x2, y2), (0, 255, 0))
+                    cv2.putText(image, self.class_names_4_detectint[label-1]+" {:.2f}".format(score), (max(0, x), max(15, y+5))
+                                ,  cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,0,255), 1)
 
     def saveFile(self, _value=False):
         if self.defaultSaveDir is not None and len(ustr(self.defaultSaveDir)):

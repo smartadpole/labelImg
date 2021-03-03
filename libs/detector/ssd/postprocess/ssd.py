@@ -7,12 +7,14 @@
 @time: 2021/2/23 上午10:23
 @desc: 
 '''
-from postprocess.utils.box import Locations2Boxes, Center2Corner
+from .utils.box import Locations2Boxes, Center2Corner
 from yacs.config import CfgNode as CN
-from postprocess.utils.prior_box import PriorBox
-from postprocess.utils.utils import Softmax
+from .utils.prior_box import PriorBox
+from .utils.utils import Softmax
 
 IMAGE_SIZE = 320
+PIXEL_MEAN = [123, 117, 104]
+THRESHOLD = [1, 1, 1, 1, 0.195, 1, 1, 0.353, 1, 1, 1]
 
 MODEL = CN()
 MODEL.CENTER_VARIANCE = 0.1
@@ -29,8 +31,8 @@ MODEL.PRIORS.ASPECT_RATIOS = [[2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3]]
 MODEL.PRIORS.BOXES_PER_LOCATION = [6, 6, 6, 6, 6, 6]  # number of boxes per feature map location
 MODEL.PRIORS.CLIP = True
 
-from postprocess.utils.nms import boxes_nms
-from postprocess.utils.utils import TopK
+from .utils.nms import boxes_nms
+from .utils.utils import TopK
 import numpy as np
 
 NMS_THRESHOLD = 0.45
