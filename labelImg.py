@@ -57,6 +57,13 @@ from libs.detector.ssd.postprocess.ssd import IMAGE_SIZE, PIXEL_MEAN, THRESHOLD
 
 __appname__ = 'labelImg'
 
+def format_shape_qt(s):
+    return dict(label=s.label,
+                line_color=s.line_color.getRgb(),
+                fill_color=s.fill_color.getRgb(),
+                points=[(p.x(), p.y()) for p in s.points],
+                difficult = s.difficult)
+
 
 class WindowMixin(object):
 
@@ -218,7 +225,7 @@ class MainWindow(QMainWindow, WindowMixin):
                       'Ctrl+Q', 'quit', getStr('quitApp'))
 
         autoLabel = action(getStr('autoLabel'), self.autoLabel,
-                      'Ctrl+l', 'autoLabel', getStr('autoLabelDetail'))
+                      's', 'autoLabel', getStr('autoLabelDetail'))
 
         open = action(getStr('openFile'), self.openFile,
                       'Ctrl+O', 'open', getStr('openFileDetail'))
@@ -847,6 +854,9 @@ class MainWindow(QMainWindow, WindowMixin):
 
             self.addLabel(shape)
         self.updateComboBox()
+
+        if len(self.canvas.shapes) > 0:
+            s.extend(self.canvas.shapes)
         self.canvas.loadShapes(s)
 
     def updateComboBox(self):
@@ -860,21 +870,12 @@ class MainWindow(QMainWindow, WindowMixin):
 
         self.comboBox.update_items(uniqueTextList)
 
-    def saveLabels(self, annotationFilePath):
+    def saveLabels(self, annotationFilePath, shapes:map):
         annotationFilePath = ustr(annotationFilePath)
         if self.labelFile is None:
             self.labelFile = LabelFile()
             self.labelFile.verified = self.canvas.verified
 
-        def format_shape(s):
-            return dict(label=s.label,
-                        line_color=s.line_color.getRgb(),
-                        fill_color=s.fill_color.getRgb(),
-                        points=[(p.x(), p.y()) for p in s.points],
-                       # add chris
-                        difficult = s.difficult)
-
-        shapes = [format_shape(shape) for shape in self.canvas.shapes]
         # Can add differrent annotation formats here
         try:
             if self.labelFileFormat == LabelFileFormat.PASCAL_VOC:
@@ -941,6 +942,7 @@ class MainWindow(QMainWindow, WindowMixin):
 
         position MUST be in global coordinates.
         """
+        # TODO : get label
         if not self.useDefaultLabelCheckbox.isChecked() or not self.defaultLabelTextLine.text():
             if len(self.labelHist) > 0:
                 self.labelDialog = LabelDialog(
@@ -1396,10 +1398,11 @@ class MainWindow(QMainWindow, WindowMixin):
             self.loadFile(filename)
 
     def _preprocess(self, image):
-        img_resize = cv2.resize(image, (IMAGE_SIZE, IMAGE_SIZE), interpolation = cv2.INTER_CUBIC)
-        image = (img_resize - PIXEL_MEAN).astype(np.float32).transpose((2, 0, 1))[np.newaxis, ::]
+        h, w, _ = image.shape
+        image = cv2.resize(image, (IMAGE_SIZE, IMAGE_SIZE), interpolation = cv2.INTER_CUBIC)
+        image = (image - PIXEL_MEAN).astype(np.float32).transpose((2, 0, 1))[np.newaxis, ::]
 
-        return image
+        return image, (w/IMAGE_SIZE, h/IMAGE_SIZE)
 
     def _loadImage4Detect(self):
         image = self.image
@@ -1415,22 +1418,27 @@ class MainWindow(QMainWindow, WindowMixin):
 
     def autoLabel(self):
         image = self._loadImage4Detect()
-        image = self._preprocess(image)
+        image, ratio = self._preprocess(image)
         out = self.net.forward(image)
         results_batch =  PostProcessor(out[0], out[1], out[2])
 
         # TODO : get rect
+        shapes = []
         for result in results_batch:
             if len(result) > 0:
                 result = result.tolist()
                 for r in result:
                     x, y, x2, y2, label, score = r
-                    x, y, x2, y2, label = int(x), int(y), int(x2), int(y2), int(label)
+                    x, y, x2, y2, label = int(x)*ratio[0], int(y)*ratio[1], int(x2)*ratio[0], int(y2)*ratio[1], int(label)
                     if score < THRESHOLD[label] or label == 0:
                         continue
-                    cv2.rectangle(image, (x, y), (x2, y2), (0, 255, 0))
-                    cv2.putText(image, self.class_names_4_detectint[label-1]+" {:.2f}".format(score), (max(0, x), max(15, y+5))
-                                ,  cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,0,255), 1)
+                    # cv2.rectangle(image, (x, y), (x2, y2), (0, 255, 0))
+                    # cv2.putText(image, self.class_names_4_detectint[label-1]+" {:.2f}".format(score), (max(0, x), max(15, y+5))
+                    #             ,  cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,0,255), 1)
+                    shapes.append((self.class_names_4_detect[label-1], [(x, y), (x2, y), (x2, y2), (x, y2)], None, None, False))
+
+        self.loadLabels(shapes) # TODO add origin
+        self.setDirty()
 
     def saveFile(self, _value=False):
         if self.defaultSaveDir is not None and len(ustr(self.defaultSaveDir)):
@@ -1470,7 +1478,8 @@ class MainWindow(QMainWindow, WindowMixin):
         return ''
 
     def _saveFile(self, annotationFilePath):
-        if annotationFilePath and self.saveLabels(annotationFilePath):
+        shapes = [format_shape_qt(shape) for shape in self.canvas.shapes]
+        if annotationFilePath and self.saveLabels(annotationFilePath, shapes):
             self.setClean()
             self.statusBar().showMessage('Saved to  %s' % annotationFilePath)
             self.statusBar().show()

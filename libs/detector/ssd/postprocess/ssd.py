@@ -14,7 +14,7 @@ from .utils.utils import Softmax
 
 IMAGE_SIZE = 320
 PIXEL_MEAN = [123, 117, 104]
-THRESHOLD = [1, 1, 1, 1, 0.195, 1, 1, 0.353, 1, 1, 1]
+THRESHOLD = [1, 1, 1, 0.1, 0.1, 1, 1, 0.15, 1, 1, 1]
 
 MODEL = CN()
 MODEL.CENTER_VARIANCE = 0.1
