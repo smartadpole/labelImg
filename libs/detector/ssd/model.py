@@ -18,9 +18,6 @@ import numpy as np
 # -*-coding: utf-8 -*-
 
 import os, sys
-
-sys.path.append(os.getcwd())
-sys.path.append("/media/hao/CODE/LIB/CPP/onnx/Release")
 import onnxruntime
 
 class ONNXModel():
