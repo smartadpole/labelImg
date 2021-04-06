@@ -9,10 +9,11 @@
 '''
 from .utils.box import Locations2Boxes, Center2Corner
 from yacs.config import CfgNode as CN
-from .utils.prior_box import PriorBox
-from .utils.utils import Softmax
+from libs.detector.utils.utils import Softmax
+import cv2
 
 IMAGE_SIZE = 320
+# IMAGE_SIZE = 320
 PIXEL_MEAN = [123, 117, 104]
 THRESHOLD = [1, 1, 1, 0.1, 0.1, 1, 1, 0.15, 1, 1, 1]
 
@@ -30,15 +31,17 @@ MODEL.PRIORS.ASPECT_RATIOS = [[2, 3], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3]]
 # #boxes = 2 + #ratio * 2
 MODEL.PRIORS.BOXES_PER_LOCATION = [6, 6, 6, 6, 6, 6]  # number of boxes per feature map location
 MODEL.PRIORS.CLIP = True
+NUM_CLASSES = 1
 
 from .utils.nms import boxes_nms
-from .utils.utils import TopK
+from libs.detector.utils.utils import TopK
 import numpy as np
 
 NMS_THRESHOLD = 0.45
 CONFIDENCE_THRESHOLD = 0.01
 MAX_PER_CLASS = -1
 MAX_PER_IMAGE = 100
+# MAX_PER_IMAGE = 2
 BACKGROUND_ID = 0
 
 def Filter(width, height, batches_scores: np.ndarray, batches_boxes:np.ndarray):
@@ -65,16 +68,18 @@ def Filter(width, height, batches_scores: np.ndarray, batches_boxes:np.ndarray):
             nmsed_labels = np.array([class_id] * keep.shape[0])
             nmsed_scores = scores[keep]
 
+            if len(result) > MAX_PER_IMAGE > 0: #TODO
+                processed_scores, keep = TopK(nmsed_scores, K=MAX_PER_IMAGE)
+                nmsed_boxes = nmsed_boxes[keep, :]
+                nmsed_labels = nmsed_labels[keep]
+                nmsed_scores = nmsed_scores[keep]
             result.append(np.concatenate((nmsed_boxes, nmsed_labels[::, np.newaxis], nmsed_scores[::, np.newaxis]), axis=1))
 
         result = np.concatenate(result, axis=0) if len(result) > 0 else []
-        if len(result) > MAX_PER_IMAGE > 0: #TODO
-            processed_scores, _ = TopK(processed_scores, K=MAX_PER_IMAGE)
         result_batch.append(result)
 
 
     return result_batch
-
 
 def PostProcessor(cls_logits, bbox_pred, priors):
     scores = Softmax(cls_logits, axis=2)
@@ -82,3 +87,4 @@ def PostProcessor(cls_logits, bbox_pred, priors):
     boxes = Center2Corner(boxes)
     detections = Filter(IMAGE_SIZE, IMAGE_SIZE, scores, boxes)
     return detections
+

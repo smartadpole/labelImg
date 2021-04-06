@@ -1,7 +1,39 @@
 import numpy as np
 
 
-def python_nms(boxes, scores, nms_thresh):
+def max_pool2d(feature_map, size, padding, stride=1):
+    feature_map = np.squeeze(feature_map, axis=0)
+    channel = feature_map.shape[0]
+    height = feature_map.shape[1]
+    width = feature_map.shape[2]
+    padding_height = np.uint16(round((height - size + 1 + 2 * padding) / stride))
+    padding_width = np.uint16(round((width - size + 1 + 2 * padding) / stride))
+
+    pool_out = np.zeros((channel, padding_height, padding_width), dtype=np.float64)
+
+    feature_map = np.pad(feature_map, ((0, 0), (padding, padding), (padding, padding)))
+
+    for map_num in range(channel):
+        out_height = 0
+        for r in np.arange(0, height, stride):
+            out_width = 0
+            for c in np.arange(0, width, stride):
+                pool_out[map_num, out_height, out_width] = np.max(feature_map[map_num, r:r + size, c:c + size])
+                out_width = out_width + 1
+            out_height = out_height + 1
+
+    return pool_out
+
+
+def centernet_nms(heat, kernel=3):
+    pad = (kernel - 1) // 2
+
+    hmax = max_pool2d(heat, kernel, padding=pad, stride=1).astype(np.float32)
+    keep = (hmax == heat)
+
+    return heat * keep
+
+def ssd_nms(boxes, scores, nms_thresh):
     """ Performs non-maximum suppression using numpy
         Args:
             boxes(numpy): `xyxy` mode boxes, use absolute coordinates(not support relative coordinates),

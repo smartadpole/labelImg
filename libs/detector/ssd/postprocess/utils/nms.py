@@ -1,8 +1,8 @@
 import warnings
 
-from .python_nms import python_nms
+from libs.detector.utils.python_nms import ssd_nms
 
-_nms = python_nms
+_nms = ssd_nms
 warnings.warn('You are using python version NMS, which is very very slow. Try compile c++ NMS '
               'using `cd ext & python build.py build_ext develop`')
 

@@ -3,7 +3,7 @@
 '''
 @author: 孙昊
 @contact: smartadpole@163.com
-@file: utils.py
+@file: file.py
 @time: 2021/2/23 上午10:49
 @desc: 
 '''
@@ -22,6 +22,24 @@ def Softmax(x, axis=1):
     result = x_exp / x_sum
 
     return result
+
+def partition_arg_topK(matrix, K, axis=0):
+    """
+    perform topK based on np.argpartition
+    :param matrix: to be sorted
+    :param K: select and sort the top K items
+    :param axis: 0 or 1. dimension to be sorted.
+    :return:
+    """
+    a_part = np.argpartition(matrix, K, axis=axis)
+    if axis == 0:
+        row_index = np.arange(matrix.shape[1 - axis])
+        a_sec_argsort_K = np.argsort(matrix[a_part[0:K, :], row_index], axis=axis)
+        return a_part[0:K, :][a_sec_argsort_K, row_index]
+    else:
+        column_index = np.arange(matrix.shape[1 - axis])[:, None]
+        a_sec_argsort_K = np.argsort(matrix[column_index, a_part[:, 0:K]], axis=axis)
+        return a_part[:, 0:K][column_index, a_sec_argsort_K], 0
 
 def TopK(matrix, K, axis=1):
     if axis == 0:
