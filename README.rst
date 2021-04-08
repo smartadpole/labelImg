@@ -1,4 +1,11 @@
 LabelImg
+
+## reqiirments
+for detect model: need `config/class_names.txt` for labels;   
+
+## auto label
+load image, and click `autoLabel` button, or use shortcut key `s`.    
+
 ========
 
 .. image:: https://img.shields.io/pypi/v/labelimg.svg

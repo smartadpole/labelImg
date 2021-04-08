@@ -48,8 +48,33 @@ from libs.create_ml_io import CreateMLReader
 from libs.create_ml_io import JSON_EXT
 from libs.ustr import ustr
 from libs.hashableQListWidgetItem import HashableQListWidgetItem
+from libs.detector.ssd.model import ONNXModel
+from libs.detector.ssd.postprocess.ssd import PostProcessor_SSD
+import numpy as np
+import cv2
+
+from libs.detector.ssd.postprocess.ssd import IMAGE_SIZE_SSD, PIXEL_MEAN, THRESHOLD
+
+from libs.detector.centernet.preprocess import pre_process as centerNetpre_process
+from libs.detector.centernet.postprocess.postprocess import PostProcessor_CENTER_NET
+from libs.detector.centernet.postprocess.postprocess import IMAGE_SIZE_CENTER_NET, CONFIDENCE_THRESHOLD
+
+onnxModelIndex = 0
+MODEL_PARAMS = {0:"_SSD", 1:"_CENTER_NET"}  # TODO models later should be added here
+MODEL_PATH = {"_SSD": "config/cleaner/ssd.onnx",
+              "_CENTER_NET": "config/human/centernet.onnx"}
+
+IMG_SIZE_DICT = {'IMAGE_SIZE_'+MODEL_PARAMS[0]: IMAGE_SIZE_SSD,
+                 'IMAGE_SIZE_'+MODEL_PARAMS[1]: IMAGE_SIZE_CENTER_NET,}
 
 __appname__ = 'labelImg'
+
+def format_shape_qt(s):
+    return dict(label=s.label,
+                line_color=s.line_color.getRgb(),
+                fill_color=s.fill_color.getRgb(),
+                points=[(p.x(), p.y()) for p in s.points],
+                difficult = s.difficult)
 
 
 class WindowMixin(object):
@@ -77,6 +102,10 @@ class MainWindow(QMainWindow, WindowMixin):
     def __init__(self, defaultFilename=None, defaultPrefdefClassFile=None, defaultSaveDir=None):
         super(MainWindow, self).__init__()
         self.setWindowTitle(__appname__)
+
+        self.class_name_file_4_detect = "config/cleaner/class_names.txt"
+        self.model_file_4_detect = MODEL_PATH[MODEL_PARAMS[onnxModelIndex]]
+        self._initDetect()
 
         # Load setting in the main thread
         self.settings = Settings()
@@ -207,6 +236,9 @@ class MainWindow(QMainWindow, WindowMixin):
         quit = action(getStr('quit'), self.close,
                       'Ctrl+Q', 'quit', getStr('quitApp'))
 
+        autoLabel = action(getStr('autoLabel'), self.autoLabel,
+                      's', 'autoLabel', getStr('autoLabelDetail'))
+
         open = action(getStr('openFile'), self.openFile,
                       'Ctrl+O', 'open', getStr('openFileDetail'))
 
@@ -285,6 +317,10 @@ class MainWindow(QMainWindow, WindowMixin):
         showAll = action('&Show\nRectBox', partial(self.togglePolygons, True),
                          'Ctrl+A', 'hide', getStr('showAllBoxDetail'),
                          enabled=False)
+
+        model0 = action('SSD', self.change_to_model0, icon='labels', tip = 'SSD model')
+
+        model1 = action('CenterNet', self.change_to_model1, icon='labels', tip = 'CenterNet model')
 
         help = action(getStr('tutorial'), self.showTutorialDialog, None, 'help', getStr('tutorialDetail'))
         showInfo = action(getStr('info'), self.showInfoDialog, None, 'help', getStr('info'))
@@ -375,6 +411,7 @@ class MainWindow(QMainWindow, WindowMixin):
             edit=self.menu('&Edit'),
             view=self.menu('&View'),
             help=self.menu('&Help'),
+            models=self.menu('&Models'),
             recentFiles=QMenu('Open &Recent'),
             labelList=labelMenu)
 
@@ -394,6 +431,8 @@ class MainWindow(QMainWindow, WindowMixin):
         self.displayLabelOption.setCheckable(True)
         self.displayLabelOption.setChecked(settings.get(SETTING_PAINT_LABEL, False))
         self.displayLabelOption.triggered.connect(self.togglePaintLabelsOption)
+
+        addActions(self.menus.models, (model0, model1))
 
         addActions(self.menus.file,
                    (open, opendir, copyPrevBounding, changeSavedir, openAnnotation, self.menus.recentFiles, save, save_format, saveAs, close, resetAll, deleteImg, quit))
@@ -417,11 +456,11 @@ class MainWindow(QMainWindow, WindowMixin):
 
         self.tools = self.toolbar('Tools')
         self.actions.beginner = (
-            open, opendir, changeSavedir, openNextImg, openPrevImg, verify, save, save_format, None, create, copy, delete, None,
+            autoLabel, open, opendir, changeSavedir, openNextImg, openPrevImg, verify, save, save_format, None, create, copy, delete, None,
             zoomIn, zoom, zoomOut, fitWindow, fitWidth)
 
         self.actions.advanced = (
-            open, opendir, changeSavedir, openNextImg, openPrevImg, save, save_format, None,
+            autoLabel, open, opendir, changeSavedir, openNextImg, openPrevImg, save, save_format, None,
             createMode, editMode, None,
             hideAll, showAll)
 
@@ -504,6 +543,24 @@ class MainWindow(QMainWindow, WindowMixin):
         # Open Dir if deafult file
         if self.filePath and os.path.isdir(self.filePath):
             self.openDirDialog(dirpath=self.filePath, silent=True)
+
+    def _loadClassNames4Detect(self):
+        if os.path.isfile(self.class_name_file_4_detect):
+            self.class_names_4_detect = [name.strip('\n')for name in open(self.class_name_file_4_detect).readlines()]
+        else:
+            raise IOError("no such file {}".format(self.class_name_file4detect))
+
+    def _initModel(self):
+        if os.path.isfile(self.model_file_4_detect):
+            self.net = ONNXModel(self.model_file_4_detect)
+        else:
+            raise IOError("no such file {}".format(self.model_file_4_detect))
+
+    def _initDetect(self):
+        self._loadClassNames4Detect()
+        self._initModel()
+
+        return self
 
     def keyReleaseEvent(self, event):
         if event.key() == Qt.Key_Control:
@@ -647,6 +704,20 @@ class MainWindow(QMainWindow, WindowMixin):
     ## Callbacks ##
     def showTutorialDialog(self):
         subprocess.Popen(self.screencastViewer + [self.screencast])
+
+    def change_to_model0(self):
+        global onnxModelIndex
+        onnxModelIndex = 0
+        self.setWindowTitle(__appname__ + "..." + MODEL_PARAMS[onnxModelIndex][1:])
+        self.model_file_4_detect = MODEL_PATH[MODEL_PARAMS[onnxModelIndex]]
+        self._initModel()
+
+    def change_to_model1(self):
+        global onnxModelIndex
+        onnxModelIndex = 1
+        self.setWindowTitle(__appname__ + "..." + MODEL_PARAMS[onnxModelIndex][1:])
+        self.model_file_4_detect = MODEL_PATH[MODEL_PARAMS[onnxModelIndex]]
+        self._initModel()
 
     def showInfoDialog(self):
         from libs.__init__ import __version__
@@ -816,6 +887,9 @@ class MainWindow(QMainWindow, WindowMixin):
 
             self.addLabel(shape)
         self.updateComboBox()
+
+        if len(self.canvas.shapes) > 0:
+            s.extend(self.canvas.shapes)
         self.canvas.loadShapes(s)
 
     def updateComboBox(self):
@@ -829,21 +903,12 @@ class MainWindow(QMainWindow, WindowMixin):
 
         self.comboBox.update_items(uniqueTextList)
 
-    def saveLabels(self, annotationFilePath):
+    def saveLabels(self, annotationFilePath, shapes:map):
         annotationFilePath = ustr(annotationFilePath)
         if self.labelFile is None:
             self.labelFile = LabelFile()
             self.labelFile.verified = self.canvas.verified
 
-        def format_shape(s):
-            return dict(label=s.label,
-                        line_color=s.line_color.getRgb(),
-                        fill_color=s.fill_color.getRgb(),
-                        points=[(p.x(), p.y()) for p in s.points],
-                       # add chris
-                        difficult = s.difficult)
-
-        shapes = [format_shape(shape) for shape in self.canvas.shapes]
         # Can add differrent annotation formats here
         try:
             if self.labelFileFormat == LabelFileFormat.PASCAL_VOC:
@@ -910,6 +975,7 @@ class MainWindow(QMainWindow, WindowMixin):
 
         position MUST be in global coordinates.
         """
+        # TODO : get label
         if not self.useDefaultLabelCheckbox.isChecked() or not self.defaultLabelTextLine.text():
             if len(self.labelHist) > 0:
                 self.labelDialog = LabelDialog(
@@ -1364,6 +1430,78 @@ class MainWindow(QMainWindow, WindowMixin):
                 filename = filename[0]
             self.loadFile(filename)
 
+    def get_IMAGE_SIZE(self):
+        return IMG_SIZE_DICT['IMAGE_SIZE_' + MODEL_PARAMS[onnxModelIndex]]
+
+    def _preprocess(self, image):
+        h, w, _ = image.shape
+        image = cv2.resize(image, (self.get_IMAGE_SIZE(), self.get_IMAGE_SIZE()), interpolation = cv2.INTER_CUBIC)
+        image = (image - PIXEL_MEAN).astype(np.float32).transpose((2, 0, 1))[np.newaxis, ::]
+
+        return image, (w / self.get_IMAGE_SIZE(), h / self.get_IMAGE_SIZE())
+
+    def _loadImage4Detect(self):
+        image = self.image
+        size = image.size()
+        s = image.bits().asstring(size.width() * size.height() * image.depth() // 8)  # format 0xffRRGGBB
+        image = np.fromstring(s, dtype=np.uint8).reshape((size.height(), size.width(), image.depth() // 8))
+        # image_org = cv2.imread(self.filePath)
+        # gray = cv2.cvtColor(image_org, cv2.COLOR_BGR2GRAY)
+        gray = image[:, :, 0]
+        gray = cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB)
+
+        return gray
+
+    def autoLabel(self):
+        if onnxModelIndex == 0:
+            self.autoLabel_SSD()
+        elif onnxModelIndex == 1:
+            self.autoLabel_CenterNet()
+
+    def autoLabel_SSD(self):
+        image = self._loadImage4Detect()
+        image, ratio = self._preprocess(image)
+        out = self.net.forward(image)
+        results_batch =  PostProcessor_SSD(out[0], out[1], out[2])
+
+        # TODO : get rect
+        shapes = []
+        for result in results_batch:
+            if len(result) > 0:
+                result = result.tolist()
+                for r in result:
+                    x, y, x2, y2, label, score = r
+                    x, y, x2, y2, label = int(x)*ratio[0], int(y)*ratio[1], int(x2)*ratio[0], int(y2)*ratio[1], int(label)
+                    if score < THRESHOLD[label] or label == 0:
+                        continue
+                    # cv2.rectangle(image, (x, y), (x2, y2), (0, 255, 0))
+                    # cv2.putText(image, self.class_names_4_detectint[label-1]+" {:.2f}".format(score), (max(0, x), max(15, y+5))
+                    #             ,  cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,0,255), 1)
+                    shapes.append((self.class_names_4_detect[label-1], [(x, y), (x2, y), (x2, y2), (x, y2)], None, None, False))
+
+        self.loadLabels(shapes) # TODO add origin
+        self.setDirty()
+
+    def autoLabel_CenterNet(self):
+        image = self._loadImage4Detect()
+        image, meta = centerNetpre_process(image, IMAGE_SIZE_CENTER_NET, 1, None)      # CenterNet
+        out = self.net.forward(image)
+        results_batch = PostProcessor_CENTER_NET(out, meta)        # CenterNet
+
+        # TODO : get rect
+        shapes = []
+        for result in results_batch.values():
+            if len(result) > 0:
+                result = result.tolist()
+                result = [r for r in result if r[4] > CONFIDENCE_THRESHOLD]
+                for r in result:
+                    x, y, x2, y2, score = r
+                    x, y, x2, y2, score = int(x), int(y), int(x2), int(y2), float(score)
+                    shapes.append(("person", [(x, y), (x2, y), (x2, y2), (x, y2)], None, None, False))
+
+        self.loadLabels(shapes) # TODO add origin
+        self.setDirty()
+
     def saveFile(self, _value=False):
         if self.defaultSaveDir is not None and len(ustr(self.defaultSaveDir)):
             if self.filePath:
@@ -1402,7 +1540,8 @@ class MainWindow(QMainWindow, WindowMixin):
         return ''
 
     def _saveFile(self, annotationFilePath):
-        if annotationFilePath and self.saveLabels(annotationFilePath):
+        shapes = [format_shape_qt(shape) for shape in self.canvas.shapes]
+        if annotationFilePath and self.saveLabels(annotationFilePath, shapes):
             self.setClean()
             self.statusBar().showMessage('Saved to  %s' % annotationFilePath)
             self.statusBar().show()
