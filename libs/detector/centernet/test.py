@@ -18,9 +18,9 @@ from libs.detector.ssd.model import ONNXModel
 import time
 import cv2
 from libs.detector.utils.timer import Timer
-from libs.detector.centernet.postprocess.postprocess import PostProcessor
+from libs.detector.centernet.postprocess.postprocess import PostProcessor_CENTER_NET
 from libs.detector.utils.file import Walk
-from libs.detector.centernet.postprocess.postprocess import IMAGE_SIZE, CONFIDENCE_THRESHOLD
+from libs.detector.centernet.postprocess.postprocess import IMAGE_SIZE_CENTER_NET, CONFIDENCE_THRESHOLD
 from libs.detector.centernet.preprocess import pre_process
 
 CLASS_NAMES = [
@@ -56,13 +56,13 @@ def main():
         gray = cv2.cvtColor(image_org, cv2.COLOR_BGR2GRAY)
         gray = cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB)
         timer.Timing("read image")
-        img_input, meta = pre_process(gray, IMAGE_SIZE, 1, None)
+        img_input, meta = pre_process(gray, IMAGE_SIZE_CENTER_NET, 1, None)
         timer.Timing("preprocess")
 
         out = net.forward(img_input)
         timer.Timing("inference")
         print()
-        results_batch = PostProcessor(out, meta)
+        results_batch = PostProcessor_CENTER_NET(out, meta)
 
         for result in results_batch.values():
             if len(result) > 0:

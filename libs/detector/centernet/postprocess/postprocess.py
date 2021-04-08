@@ -17,7 +17,7 @@ from libs.detector.utils.python_nms import centernet_nms
 from libs.detector.centernet.utils import get_affine_transform
 from libs.detector.utils.utils import TopK
 
-IMAGE_SIZE = 320
+IMAGE_SIZE_CENTER_NET = 320
 
 MODEL = CN()
 MODEL.CENTER_VARIANCE = 0.1
@@ -131,7 +131,7 @@ def post_process(dets, meta, scale=1):
         dets[0][j][:, :4] /= scale
     return dets[0]
 
-def PostProcessor(output, meta, K=100):
+def PostProcessor_CENTER_NET(output, meta, K=100):
 
     output = output[-1]
     hm = output[:, 0:1, :, :]

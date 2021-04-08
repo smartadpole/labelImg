@@ -49,11 +49,23 @@ from libs.create_ml_io import JSON_EXT
 from libs.ustr import ustr
 from libs.hashableQListWidgetItem import HashableQListWidgetItem
 from libs.detector.ssd.model import ONNXModel
-from libs.detector.ssd.postprocess.ssd import PostProcessor
+from libs.detector.ssd.postprocess.ssd import PostProcessor_SSD
 import numpy as np
 import cv2
 
-from libs.detector.ssd.postprocess.ssd import IMAGE_SIZE, PIXEL_MEAN, THRESHOLD
+from libs.detector.ssd.postprocess.ssd import IMAGE_SIZE_SSD, PIXEL_MEAN, THRESHOLD
+
+from libs.detector.centernet.preprocess import pre_process as centerNetpre_process
+from libs.detector.centernet.postprocess.postprocess import PostProcessor_CENTER_NET
+from libs.detector.centernet.postprocess.postprocess import IMAGE_SIZE_CENTER_NET, CONFIDENCE_THRESHOLD
+
+onnx_model = 0
+MODEL_PARAMS = {0:"_SSD", 1:"_CENTER_NET"}  # TODO models later should be added here
+MODEL_PATH = {"_SSD": "config/abby.onnx",
+              "_CENTER_NET": "config/person.onnx"}
+
+IMG_SIZE_DICT = {'IMAGE_SIZE_'+MODEL_PARAMS[0]: IMAGE_SIZE_SSD,
+                 'IMAGE_SIZE_'+MODEL_PARAMS[1]: IMAGE_SIZE_CENTER_NET,}
 
 __appname__ = 'labelImg'
 
@@ -92,7 +104,7 @@ class MainWindow(QMainWindow, WindowMixin):
         self.setWindowTitle(__appname__)
 
         self.class_name_file_4_detect = "config/class_names.txt"
-        self.model_file_4_detect = "config/model.onnx"
+        self.model_file_4_detect = MODEL_PATH[MODEL_PARAMS[onnx_model]]
         self._initDetect()
 
         # Load setting in the main thread
@@ -306,6 +318,10 @@ class MainWindow(QMainWindow, WindowMixin):
                          'Ctrl+A', 'hide', getStr('showAllBoxDetail'),
                          enabled=False)
 
+        model0 = action('SSD', self.change_to_model0, icon='labels', tip = 'SSD model')
+
+        model1 = action('CenterNet', self.change_to_model1, icon='labels', tip = 'CenterNet model')
+
         help = action(getStr('tutorial'), self.showTutorialDialog, None, 'help', getStr('tutorialDetail'))
         showInfo = action(getStr('info'), self.showInfoDialog, None, 'help', getStr('info'))
 
@@ -395,6 +411,7 @@ class MainWindow(QMainWindow, WindowMixin):
             edit=self.menu('&Edit'),
             view=self.menu('&View'),
             help=self.menu('&Help'),
+            models=self.menu('&Models'),
             recentFiles=QMenu('Open &Recent'),
             labelList=labelMenu)
 
@@ -414,6 +431,8 @@ class MainWindow(QMainWindow, WindowMixin):
         self.displayLabelOption.setCheckable(True)
         self.displayLabelOption.setChecked(settings.get(SETTING_PAINT_LABEL, False))
         self.displayLabelOption.triggered.connect(self.togglePaintLabelsOption)
+
+        addActions(self.menus.models, (model0, model1))
 
         addActions(self.menus.file,
                    (open, opendir, copyPrevBounding, changeSavedir, openAnnotation, self.menus.recentFiles, save, save_format, saveAs, close, resetAll, deleteImg, quit))
@@ -685,6 +704,20 @@ class MainWindow(QMainWindow, WindowMixin):
     ## Callbacks ##
     def showTutorialDialog(self):
         subprocess.Popen(self.screencastViewer + [self.screencast])
+
+    def change_to_model0(self):
+        global onnx_model
+        onnx_model = 0
+        self.setWindowTitle(__appname__ + "..." + MODEL_PARAMS[onnx_model][1:])
+        self.model_file_4_detect = MODEL_PATH[MODEL_PARAMS[onnx_model]]
+        self._initModel()
+
+    def change_to_model1(self):
+        global onnx_model
+        onnx_model = 1
+        self.setWindowTitle(__appname__ + "..." + MODEL_PARAMS[onnx_model][1:])
+        self.model_file_4_detect = MODEL_PATH[MODEL_PARAMS[onnx_model]]
+        self._initModel()
 
     def showInfoDialog(self):
         from libs.__init__ import __version__
@@ -1397,12 +1430,15 @@ class MainWindow(QMainWindow, WindowMixin):
                 filename = filename[0]
             self.loadFile(filename)
 
+    def get_IMAGE_SIZE(self):
+        return IMG_SIZE_DICT['IMAGE_SIZE_' + MODEL_PARAMS[onnx_model]]
+
     def _preprocess(self, image):
         h, w, _ = image.shape
-        image = cv2.resize(image, (IMAGE_SIZE, IMAGE_SIZE), interpolation = cv2.INTER_CUBIC)
+        image = cv2.resize(image, (self.get_IMAGE_SIZE(), self.get_IMAGE_SIZE()), interpolation = cv2.INTER_CUBIC)
         image = (image - PIXEL_MEAN).astype(np.float32).transpose((2, 0, 1))[np.newaxis, ::]
 
-        return image, (w/IMAGE_SIZE, h/IMAGE_SIZE)
+        return image, (w / self.get_IMAGE_SIZE(), h / self.get_IMAGE_SIZE())
 
     def _loadImage4Detect(self):
         image = self.image
@@ -1417,10 +1453,16 @@ class MainWindow(QMainWindow, WindowMixin):
         return gray
 
     def autoLabel(self):
+        if onnx_model == 0:
+            self.autoLabel_SSD()
+        elif onnx_model == 1:
+            self.autoLabel_CenterNet()
+
+    def autoLabel_SSD(self):
         image = self._loadImage4Detect()
         image, ratio = self._preprocess(image)
         out = self.net.forward(image)
-        results_batch =  PostProcessor(out[0], out[1], out[2])
+        results_batch =  PostProcessor_SSD(out[0], out[1], out[2])
 
         # TODO : get rect
         shapes = []
@@ -1436,6 +1478,26 @@ class MainWindow(QMainWindow, WindowMixin):
                     # cv2.putText(image, self.class_names_4_detectint[label-1]+" {:.2f}".format(score), (max(0, x), max(15, y+5))
                     #             ,  cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,0,255), 1)
                     shapes.append((self.class_names_4_detect[label-1], [(x, y), (x2, y), (x2, y2), (x, y2)], None, None, False))
+
+        self.loadLabels(shapes) # TODO add origin
+        self.setDirty()
+
+    def autoLabel_CenterNet(self):
+        image = self._loadImage4Detect()
+        image, meta = centerNetpre_process(image, IMAGE_SIZE_CENTER_NET, 1, None)      # CenterNet
+        out = self.net.forward(image)
+        results_batch = PostProcessor_CENTER_NET(out, meta)        # CenterNet
+
+        # TODO : get rect
+        shapes = []
+        for result in results_batch.values():
+            if len(result) > 0:
+                result = result.tolist()
+                result = [r for r in result if r[4] > CONFIDENCE_THRESHOLD]
+                for r in result:
+                    x, y, x2, y2, score = r
+                    x, y, x2, y2, score = int(x), int(y), int(x2), int(y2), float(score)
+                    shapes.append(("person", [(x, y), (x2, y), (x2, y2), (x, y2)], None, None, False))
 
         self.loadLabels(shapes) # TODO add origin
         self.setDirty()
