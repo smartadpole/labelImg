@@ -52,6 +52,7 @@ class ONNXModel():
         return scores
 
 
+
 def to_numpy(tensor):
     print(tensor.device)
     return tensor.detach().cpu().numpy() if tensor.requires_grad else tensor.cpu().numpy()

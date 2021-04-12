@@ -59,10 +59,10 @@ from libs.detector.centernet.preprocess import pre_process as centerNetpre_proce
 from libs.detector.centernet.postprocess.postprocess import PostProcessor_CENTER_NET
 from libs.detector.centernet.postprocess.postprocess import IMAGE_SIZE_CENTER_NET, CONFIDENCE_THRESHOLD
 
-onnx_model = 0
+onnxModelIndex = 0
 MODEL_PARAMS = {0:"_SSD", 1:"_CENTER_NET"}  # TODO models later should be added here
-MODEL_PATH = {"_SSD": "config/abby.onnx",
-              "_CENTER_NET": "config/person.onnx"}
+MODEL_PATH = {"_SSD": "config/cleaner/ssd.onnx",
+              "_CENTER_NET": "config/human/centernet.onnx"}
 
 IMG_SIZE_DICT = {'IMAGE_SIZE_'+MODEL_PARAMS[0]: IMAGE_SIZE_SSD,
                  'IMAGE_SIZE_'+MODEL_PARAMS[1]: IMAGE_SIZE_CENTER_NET,}
@@ -103,8 +103,8 @@ class MainWindow(QMainWindow, WindowMixin):
         super(MainWindow, self).__init__()
         self.setWindowTitle(__appname__)
 
-        self.class_name_file_4_detect = "config/class_names.txt"
-        self.model_file_4_detect = MODEL_PATH[MODEL_PARAMS[onnx_model]]
+        self.class_name_file_4_detect = "config/cleaner/class_names.txt"
+        self.model_file_4_detect = MODEL_PATH[MODEL_PARAMS[onnxModelIndex]]
         self._initDetect()
 
         # Load setting in the main thread
@@ -706,17 +706,17 @@ class MainWindow(QMainWindow, WindowMixin):
         subprocess.Popen(self.screencastViewer + [self.screencast])
 
     def change_to_model0(self):
-        global onnx_model
-        onnx_model = 0
-        self.setWindowTitle(__appname__ + "..." + MODEL_PARAMS[onnx_model][1:])
-        self.model_file_4_detect = MODEL_PATH[MODEL_PARAMS[onnx_model]]
+        global onnxModelIndex
+        onnxModelIndex = 0
+        self.setWindowTitle(__appname__ + "..." + MODEL_PARAMS[onnxModelIndex][1:])
+        self.model_file_4_detect = MODEL_PATH[MODEL_PARAMS[onnxModelIndex]]
         self._initModel()
 
     def change_to_model1(self):
-        global onnx_model
-        onnx_model = 1
-        self.setWindowTitle(__appname__ + "..." + MODEL_PARAMS[onnx_model][1:])
-        self.model_file_4_detect = MODEL_PATH[MODEL_PARAMS[onnx_model]]
+        global onnxModelIndex
+        onnxModelIndex = 1
+        self.setWindowTitle(__appname__ + "..." + MODEL_PARAMS[onnxModelIndex][1:])
+        self.model_file_4_detect = MODEL_PATH[MODEL_PARAMS[onnxModelIndex]]
         self._initModel()
 
     def showInfoDialog(self):
@@ -1431,7 +1431,7 @@ class MainWindow(QMainWindow, WindowMixin):
             self.loadFile(filename)
 
     def get_IMAGE_SIZE(self):
-        return IMG_SIZE_DICT['IMAGE_SIZE_' + MODEL_PARAMS[onnx_model]]
+        return IMG_SIZE_DICT['IMAGE_SIZE_' + MODEL_PARAMS[onnxModelIndex]]
 
     def _preprocess(self, image):
         h, w, _ = image.shape
@@ -1453,9 +1453,9 @@ class MainWindow(QMainWindow, WindowMixin):
         return gray
 
     def autoLabel(self):
-        if onnx_model == 0:
+        if onnxModelIndex == 0:
             self.autoLabel_SSD()
-        elif onnx_model == 1:
+        elif onnxModelIndex == 1:
             self.autoLabel_CenterNet()
 
     def autoLabel_SSD(self):
