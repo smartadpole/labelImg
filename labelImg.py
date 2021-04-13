@@ -55,10 +55,13 @@ import cv2
 
 from libs.detector.ssd.postprocess.ssd import IMAGE_SIZE_SSD, PIXEL_MEAN, THRESHOLD
 
-from libs.detector.centernet.preprocess import pre_process as centerNetpre_process
+from libs.detector.centernet.preprocess import pre_process as centerNetPreProcess
 from libs.detector.centernet.postprocess.postprocess import PostProcessor_CENTER_NET
 from libs.detector.centernet.postprocess.postprocess import IMAGE_SIZE_CENTER_NET, CONFIDENCE_THRESHOLD
-from libs.detector.yolov5.postprocess.postprocess import IMAGE_SIZE_YOLOV5
+
+from libs.detector.yolov5.preprocess import pre_process as YOLOV5PreProcess
+from libs.detector.yolov5.postprocess.postprocess import IMAGE_SIZE_YOLOV5, THRESHOLD_YOLOV5
+from libs.detector.yolov5.postprocess.postprocess import PostProcessor_YOLOV5
 
 onnxModelIndex = 0
 MODEL_PARAMS = {0: "_SSD", 1: "_CENTER_NET", 2: "_YOLOv5"}  # TODO models later should be added here
@@ -322,8 +325,8 @@ class MainWindow(QMainWindow, WindowMixin):
                          enabled=False)
 
         model0 = action('SSD', self.change_to_model0, icon='labels', tip = 'SSD model')
-
         model1 = action('CenterNet', self.change_to_model1, icon='labels', tip = 'CenterNet model')
+        model2 = action('YOLOv5', self.change_to_model2, icon='labels', tip = 'YOLOv5 model')
 
         help = action(getStr('tutorial'), self.showTutorialDialog, None, 'help', getStr('tutorialDetail'))
         showInfo = action(getStr('info'), self.showInfoDialog, None, 'help', getStr('info'))
@@ -435,7 +438,12 @@ class MainWindow(QMainWindow, WindowMixin):
         self.displayLabelOption.setChecked(settings.get(SETTING_PAINT_LABEL, False))
         self.displayLabelOption.triggered.connect(self.togglePaintLabelsOption)
 
-        addActions(self.menus.models, (model0, model1))
+        # Models
+        # self.SSD = QAction('SSD', self)
+        # self.SSD.setCheckable(True)
+        # self.SSD.setChecked()
+
+        addActions(self.menus.models, (model0, model1, model2))
 
         addActions(self.menus.file,
                    (open, opendir, copyPrevBounding, changeSavedir, openAnnotation, self.menus.recentFiles, save, save_format, saveAs, close, resetAll, deleteImg, quit))
@@ -709,6 +717,7 @@ class MainWindow(QMainWindow, WindowMixin):
         subprocess.Popen(self.screencastViewer + [self.screencast])
 
     def change_to_model0(self):
+        # SSD
         global onnxModelIndex
         onnxModelIndex = 0
         self.setWindowTitle(__appname__ + "..." + MODEL_PARAMS[onnxModelIndex][1:])
@@ -716,8 +725,17 @@ class MainWindow(QMainWindow, WindowMixin):
         self._initModel()
 
     def change_to_model1(self):
+        # CenterNet
         global onnxModelIndex
         onnxModelIndex = 1
+        self.setWindowTitle(__appname__ + "..." + MODEL_PARAMS[onnxModelIndex][1:])
+        self.model_file_4_detect = MODEL_PATH[MODEL_PARAMS[onnxModelIndex]]
+        self._initModel()
+
+    def change_to_model2(self):
+        # YOLOv5
+        global onnxModelIndex
+        onnxModelIndex = 2
         self.setWindowTitle(__appname__ + "..." + MODEL_PARAMS[onnxModelIndex][1:])
         self.model_file_4_detect = MODEL_PATH[MODEL_PARAMS[onnxModelIndex]]
         self._initModel()
@@ -1460,6 +1478,8 @@ class MainWindow(QMainWindow, WindowMixin):
             self.autoLabel_SSD()
         elif onnxModelIndex == 1:
             self.autoLabel_CenterNet()
+        elif onnxModelIndex == 2:
+            self.autoLabel_YOLOv5()
 
     def autoLabel_SSD(self):
         image = self._loadImage4Detect()
@@ -1487,7 +1507,7 @@ class MainWindow(QMainWindow, WindowMixin):
 
     def autoLabel_CenterNet(self):
         image = self._loadImage4Detect()
-        image, meta = centerNetpre_process(image, IMAGE_SIZE_CENTER_NET, 1, None)      # CenterNet
+        image, meta = centerNetPreProcess(image, IMAGE_SIZE_CENTER_NET, 1, None)      # CenterNet
         out = self.net.forward(image)
         results_batch = PostProcessor_CENTER_NET(out, meta)        # CenterNet
 
@@ -1501,6 +1521,35 @@ class MainWindow(QMainWindow, WindowMixin):
                     x, y, x2, y2, score = r
                     x, y, x2, y2, score = int(x), int(y), int(x2), int(y2), float(score)
                     shapes.append(("person", [(x, y), (x2, y), (x2, y2), (x, y2)], None, None, False))
+
+        self.loadLabels(shapes) # TODO add origin
+        self.setDirty()
+
+    def autoLabel_YOLOv5(self):
+        image = self._loadImage4Detect()
+        image = cv2.resize(image, (IMAGE_SIZE_YOLOV5, IMAGE_SIZE_YOLOV5))
+        image = YOLOV5PreProcess(image)
+        out = self.net.forward(image)
+        results_batch = PostProcessor_YOLOV5(out)
+
+        # TODO : get rect
+        shapes = []
+        for result in results_batch:
+            if len(result) > 0:
+                result = result.tolist()
+                print(result)
+                result = [r for r in result if r[4] > THRESHOLD_YOLOV5]
+                for r in result:
+                    x, y, x2, y2, score, label = r
+                    if label != 0:  # detect humans only
+                        continue
+
+                    y = y / 1.6  # / 640 * 400
+                    y2 = y2 / 1.6  # / 640 * 400
+                    x, y, x2, y2, score, label = int(x), int(y), int(x2), int(y2), float(score), int(label)
+                    shapes.append(("person", [(x, y), (x2, y), (x2, y2), (x, y2)], None, None, False))
+
+        print(shapes)
 
         self.loadLabels(shapes) # TODO add origin
         self.setDirty()
