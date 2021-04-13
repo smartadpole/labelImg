@@ -63,6 +63,10 @@ from libs.detector.yolov5.preprocess import pre_process as YOLOV5PreProcess
 from libs.detector.yolov5.postprocess.postprocess import IMAGE_SIZE_YOLOV5, THRESHOLD_YOLOV5
 from libs.detector.yolov5.postprocess.postprocess import PostProcessor_YOLOV5
 
+# Threading
+import inspect
+import ctypes
+
 onnxModelIndex = 0
 MODEL_PARAMS = {0: "_SSD", 1: "_CENTER_NET", 2: "_YOLOv5"}  # TODO models later should be added here
 MODEL_PATH = {"_SSD": "config/cleaner/ssd.onnx",
@@ -102,12 +106,17 @@ class WindowMixin(object):
         return toolbar
 
 
+
+
+
 class MainWindow(QMainWindow, WindowMixin):
     FIT_WINDOW, FIT_WIDTH, MANUAL_ZOOM = list(range(3))
 
     def __init__(self, defaultFilename=None, defaultPrefdefClassFile=None, defaultSaveDir=None):
         super(MainWindow, self).__init__()
         self.setWindowTitle(__appname__)
+
+        self.fullyAutoMode = False
 
         self.class_name_file_4_detect = "config/cleaner/class_names.txt"
         self.model_file_4_detect = MODEL_PATH[MODEL_PARAMS[onnxModelIndex]]
@@ -242,8 +251,11 @@ class MainWindow(QMainWindow, WindowMixin):
         quit = action(getStr('quit'), self.close,
                       'Ctrl+Q', 'quit', getStr('quitApp'))
 
+        global autoLabel
         autoLabel = action(getStr('autoLabel'), self.autoLabel,
                       's', 'autoLabel', getStr('autoLabelDetail'))
+
+
 
         open = action(getStr('openFile'), self.openFile,
                       'Ctrl+O', 'open', getStr('openFileDetail'))
@@ -438,9 +450,15 @@ class MainWindow(QMainWindow, WindowMixin):
         self.displayLabelOption.setChecked(settings.get(SETTING_PAINT_LABEL, False))
         self.displayLabelOption.triggered.connect(self.togglePaintLabelsOption)
 
+        # Full auto label controller
+        self.FullyAutoLabelOption = QAction("Fully Auto Label Mode", self)
+        self.FullyAutoLabelOption.setCheckable(True)
+        self.FullyAutoLabelOption.setChecked(False)
+        self.FullyAutoLabelOption.triggered.connect(self.toggleFullyAutoLabel)
+
         # Models
-        # self.SSD = QAction('SSD', self)
-        # self.SSD.setCheckable(True)
+        self.SSD = QAction('SSD', self)
+        self.SSD.setCheckable(True)
         # self.SSD.setChecked()
 
         addActions(self.menus.models, (model0, model1, model2))
@@ -452,6 +470,7 @@ class MainWindow(QMainWindow, WindowMixin):
             self.autoSaving,
             self.singleClassMode,
             self.displayLabelOption,
+            self.FullyAutoLabelOption,
             labels, advancedMode, None,
             hideAll, showAll, None,
             zoomIn, zoomOut, zoomOrg, None,
@@ -1439,6 +1458,8 @@ class MainWindow(QMainWindow, WindowMixin):
         if filename:
             self.loadFile(filename)
 
+        return filename
+
     def openFile(self, _value=False):
         if not self.mayContinue():
             return
@@ -1473,7 +1494,44 @@ class MainWindow(QMainWindow, WindowMixin):
 
         return gray
 
+    # class WorkThread(QThread):
+    #     trigger = pyqtSignal()
+    #
+    #     def __int__(self):
+    #         super().__init__()
+    #
+    #     def run(self):
+    #         for i in mImgList:
+    #             MainWindow.auto()
+    #             # if not select:
+    #             #     break
+    #             MainWindow.openNextImg()
+    #         self.trigger.emit()
+
     def autoLabel(self):
+        if not self.fullyAutoMode:
+            # if not in the fullyAutoMode
+            self.auto()
+        else:
+            # in the fullyAutoMode
+            self.i = 0
+            self.timer = QTimer(self)
+            self.timer.start(20)
+            self.timer.timeout.connect(self.autoThreadFunc)
+
+    def autoThreadFunc(self):
+        if self.fullyAutoMode:
+            next_id = self.mImgList.index(self.filePath) + 1
+            if next_id <= len(self.mImgList):
+                self.auto()
+                self.openNextImg()
+            if next_id == len(self.mImgList):
+                self.timer.stop()
+        else:
+            self.timer.stop()
+
+
+    def auto(self):
         if onnxModelIndex == 0:
             self.autoLabel_SSD()
         elif onnxModelIndex == 1:
@@ -1748,8 +1806,19 @@ class MainWindow(QMainWindow, WindowMixin):
         for shape in self.canvas.shapes:
             shape.paintLabel = self.displayLabelOption.isChecked()
 
+    def toggleFullyAutoLabel(self):
+        if self.FullyAutoLabelOption.isChecked():
+            # if this button is checked
+            autoLabel.setText("Fully autoLabel")
+            self.fullyAutoMode = True
+        else:
+            # if this button is NOT checked
+            autoLabel.setText("autoLabel")
+            self.fullyAutoMode = False
+
     def toogleDrawSquare(self):
         self.canvas.setDrawingShapeToSquare(self.drawSquaresOption.isChecked())
+
 
 def inverted(color):
     return QColor(*[255 - v for v in color.getRgb()])
