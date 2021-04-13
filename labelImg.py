@@ -58,14 +58,17 @@ from libs.detector.ssd.postprocess.ssd import IMAGE_SIZE_SSD, PIXEL_MEAN, THRESH
 from libs.detector.centernet.preprocess import pre_process as centerNetpre_process
 from libs.detector.centernet.postprocess.postprocess import PostProcessor_CENTER_NET
 from libs.detector.centernet.postprocess.postprocess import IMAGE_SIZE_CENTER_NET, CONFIDENCE_THRESHOLD
+from libs.detector.yolov5.postprocess.postprocess import IMAGE_SIZE_YOLOV5
 
 onnxModelIndex = 0
-MODEL_PARAMS = {0:"_SSD", 1:"_CENTER_NET"}  # TODO models later should be added here
+MODEL_PARAMS = {0: "_SSD", 1: "_CENTER_NET", 2: "_YOLOv5"}  # TODO models later should be added here
 MODEL_PATH = {"_SSD": "config/cleaner/ssd.onnx",
-              "_CENTER_NET": "config/human/centernet.onnx"}
+              "_CENTER_NET": "config/human/centernet.onnx",
+              "_YOLOv5": "config/human/yolov5.onnx",}
 
-IMG_SIZE_DICT = {'IMAGE_SIZE_'+MODEL_PARAMS[0]: IMAGE_SIZE_SSD,
-                 'IMAGE_SIZE_'+MODEL_PARAMS[1]: IMAGE_SIZE_CENTER_NET,}
+IMG_SIZE_DICT = {'IMAGE_SIZE'+MODEL_PARAMS[0]: IMAGE_SIZE_SSD,
+                 'IMAGE_SIZE'+MODEL_PARAMS[1]: IMAGE_SIZE_CENTER_NET,
+                 'IMAGE_SIZE'+MODEL_PARAMS[2]: IMAGE_SIZE_YOLOV5,}
 
 __appname__ = 'labelImg'
 
@@ -1431,7 +1434,7 @@ class MainWindow(QMainWindow, WindowMixin):
             self.loadFile(filename)
 
     def get_IMAGE_SIZE(self):
-        return IMG_SIZE_DICT['IMAGE_SIZE_' + MODEL_PARAMS[onnxModelIndex]]
+        return IMG_SIZE_DICT['IMAGE_SIZE' + MODEL_PARAMS[onnxModelIndex]]
 
     def _preprocess(self, image):
         h, w, _ = image.shape
