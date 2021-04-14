@@ -752,6 +752,8 @@ class MainWindow(QMainWindow, WindowMixin):
         onnxModelIndex = 0
         if self.model0.isChecked():
             self.theseModels[onnxModelIndex] = True
+        else:
+            self.theseModels[onnxModelIndex] = False
 
     def changeStatusModel1(self):
         # CenterNet
@@ -759,6 +761,8 @@ class MainWindow(QMainWindow, WindowMixin):
         onnxModelIndex = 1
         if self.model1.isChecked():
             self.theseModels[onnxModelIndex] = True
+        else:
+            self.theseModels[onnxModelIndex] = False
 
     def changeStatusModel2(self):
         # YOLOv5
@@ -766,6 +770,8 @@ class MainWindow(QMainWindow, WindowMixin):
         onnxModelIndex = 2
         if self.model2.isChecked():
             self.theseModels[onnxModelIndex] = True
+        else:
+            self.theseModels[onnxModelIndex] = False
 
     def showInfoDialog(self):
         from libs.__init__ import __version__
