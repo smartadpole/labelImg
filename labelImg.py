@@ -48,24 +48,15 @@ from libs.create_ml_io import CreateMLReader
 from libs.create_ml_io import JSON_EXT
 from libs.ustr import ustr
 from libs.hashableQListWidgetItem import HashableQListWidgetItem
-from libs.detector.ssd.model import ONNXModel
+from libs.detector.ssd.onnxmodel import ONNXModel
 from libs.detector.ssd.postprocess.ssd import PostProcessor_SSD
 import numpy as np
 import cv2
 
-from libs.detector.ssd.postprocess.ssd import IMAGE_SIZE_SSD, PIXEL_MEAN, THRESHOLD
+from libs.detector.ssd.model import SSD
+from libs.detector.centernet.model import CenterNet
+from libs.detector.yolov5.model import YOLOv5
 
-from libs.detector.centernet.preprocess import pre_process as centerNetPreProcess
-from libs.detector.centernet.postprocess.postprocess import PostProcessor_CENTER_NET
-from libs.detector.centernet.postprocess.postprocess import IMAGE_SIZE_CENTER_NET, CONFIDENCE_THRESHOLD
-
-from libs.detector.yolov5.preprocess import pre_process as YOLOV5PreProcess
-from libs.detector.yolov5.postprocess.postprocess import IMAGE_SIZE_YOLOV5, THRESHOLD_YOLOV5
-from libs.detector.yolov5.postprocess.postprocess import PostProcessor_YOLOV5
-
-# Threading
-import inspect
-import ctypes
 
 onnxModelIndex = 0
 MODEL_PARAMS = {0: "_SSD", 1: "_CENTER_NET", 2: "_YOLOv5"}  # TODO models later should be added here
@@ -73,9 +64,9 @@ MODEL_PATH = {"_SSD": "config/cleaner/ssd.onnx",
               "_CENTER_NET": "config/human/centernet.onnx",
               "_YOLOv5": "config/human/yolov5.onnx",}
 
-IMG_SIZE_DICT = {'IMAGE_SIZE'+MODEL_PARAMS[0]: IMAGE_SIZE_SSD,
-                 'IMAGE_SIZE'+MODEL_PARAMS[1]: IMAGE_SIZE_CENTER_NET,
-                 'IMAGE_SIZE'+MODEL_PARAMS[2]: IMAGE_SIZE_YOLOV5,}
+# IMG_SIZE_DICT = {'IMAGE_SIZE'+MODEL_PARAMS[0]: 320,
+#                  'IMAGE_SIZE'+MODEL_PARAMS[1]: 320,
+#                  'IMAGE_SIZE'+MODEL_PARAMS[2]: 640,}
 
 __appname__ = 'labelImg'
 
@@ -573,6 +564,10 @@ class MainWindow(QMainWindow, WindowMixin):
         # Open Dir if deafult file
         if self.filePath and os.path.isdir(self.filePath):
             self.openDirDialog(dirpath=self.filePath, silent=True)
+
+        self.centerNet = CenterNet()
+        self.SSD = SSD()
+        self.YOLOv5 = YOLOv5()
 
     def _loadClassNames4Detect(self):
         if os.path.isfile(self.class_name_file_4_detect):
@@ -1472,16 +1467,6 @@ class MainWindow(QMainWindow, WindowMixin):
                 filename = filename[0]
             self.loadFile(filename)
 
-    def get_IMAGE_SIZE(self):
-        return IMG_SIZE_DICT['IMAGE_SIZE' + MODEL_PARAMS[onnxModelIndex]]
-
-    def _preprocess(self, image):
-        h, w, _ = image.shape
-        image = cv2.resize(image, (self.get_IMAGE_SIZE(), self.get_IMAGE_SIZE()), interpolation = cv2.INTER_CUBIC)
-        image = (image - PIXEL_MEAN).astype(np.float32).transpose((2, 0, 1))[np.newaxis, ::]
-
-        return image, (w / self.get_IMAGE_SIZE(), h / self.get_IMAGE_SIZE())
-
     def _loadImage4Detect(self):
         image = self.image
         size = image.size()
@@ -1533,84 +1518,26 @@ class MainWindow(QMainWindow, WindowMixin):
 
     def auto(self):
         if onnxModelIndex == 0:
-            self.autoLabel_SSD()
+            shapes = self.autoLabel_SSD()
         elif onnxModelIndex == 1:
-            self.autoLabel_CenterNet()
+            shapes = self.autoLabel_CenterNet()
         elif onnxModelIndex == 2:
-            self.autoLabel_YOLOv5()
+            shapes = self.autoLabel_YOLOv5()
+
+        self.loadLabels(shapes)
+        self.setDirty()
 
     def autoLabel_SSD(self):
         image = self._loadImage4Detect()
-        image, ratio = self._preprocess(image)
-        out = self.net.forward(image)
-        results_batch =  PostProcessor_SSD(out[0], out[1], out[2])
-
-        # TODO : get rect
-        shapes = []
-        for result in results_batch:
-            if len(result) > 0:
-                result = result.tolist()
-                for r in result:
-                    x, y, x2, y2, label, score = r
-                    x, y, x2, y2, label = int(x)*ratio[0], int(y)*ratio[1], int(x2)*ratio[0], int(y2)*ratio[1], int(label)
-                    if score < THRESHOLD[label] or label == 0:
-                        continue
-                    # cv2.rectangle(image, (x, y), (x2, y2), (0, 255, 0))
-                    # cv2.putText(image, self.class_names_4_detectint[label-1]+" {:.2f}".format(score), (max(0, x), max(15, y+5))
-                    #             ,  cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,0,255), 1)
-                    shapes.append((self.class_names_4_detect[label-1], [(x, y), (x2, y), (x2, y2), (x, y2)], None, None, False))
-
-        self.loadLabels(shapes) # TODO add origin
-        self.setDirty()
+        return self.SSD.forward(image, self.class_names_4_detect)
 
     def autoLabel_CenterNet(self):
         image = self._loadImage4Detect()
-        image, meta = centerNetPreProcess(image, IMAGE_SIZE_CENTER_NET, 1, None)      # CenterNet
-        out = self.net.forward(image)
-        results_batch = PostProcessor_CENTER_NET(out, meta)        # CenterNet
-
-        # TODO : get rect
-        shapes = []
-        for result in results_batch.values():
-            if len(result) > 0:
-                result = result.tolist()
-                result = [r for r in result if r[4] > CONFIDENCE_THRESHOLD]
-                for r in result:
-                    x, y, x2, y2, score = r
-                    x, y, x2, y2, score = int(x), int(y), int(x2), int(y2), float(score)
-                    shapes.append(("person", [(x, y), (x2, y), (x2, y2), (x, y2)], None, None, False))
-
-        self.loadLabels(shapes) # TODO add origin
-        self.setDirty()
+        return self.centerNet.forward(image)
 
     def autoLabel_YOLOv5(self):
         image = self._loadImage4Detect()
-        image = cv2.resize(image, (IMAGE_SIZE_YOLOV5, IMAGE_SIZE_YOLOV5))
-        image = YOLOV5PreProcess(image)
-        out = self.net.forward(image)
-        results_batch = PostProcessor_YOLOV5(out)
-
-        # TODO : get rect
-        shapes = []
-        for result in results_batch:
-            if len(result) > 0:
-                result = result.tolist()
-                print(result)
-                result = [r for r in result if r[4] > THRESHOLD_YOLOV5]
-                for r in result:
-                    x, y, x2, y2, score, label = r
-                    if label != 0:  # detect humans only
-                        continue
-
-                    y = y / 1.6  # / 640 * 400
-                    y2 = y2 / 1.6  # / 640 * 400
-                    x, y, x2, y2, score, label = int(x), int(y), int(x2), int(y2), float(score), int(label)
-                    shapes.append(("person", [(x, y), (x2, y), (x2, y2), (x, y2)], None, None, False))
-
-        print(shapes)
-
-        self.loadLabels(shapes) # TODO add origin
-        self.setDirty()
+        return self.YOLOv5.forward(image)
 
     def saveFile(self, _value=False):
         if self.defaultSaveDir is not None and len(ustr(self.defaultSaveDir)):

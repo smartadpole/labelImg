@@ -1,5 +1,14 @@
+#!/usr/bin/python3 python
+# encoding: utf-8
+'''
+@author: 焦子傲
+@contact: 1054568970@.com
+@file: model.py
+@time: 2021/4/11 15:56
+@desc:
+'''
+
 import numpy as np
-import cv2
 
 def pre_process(inp_img):
 

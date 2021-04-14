@@ -158,28 +158,6 @@ def non_max_suppression(prediction, conf_thres=0.25, iou_thres=0.45, classes=Non
 
     return output
 
-# def clip_coords(boxes, img_shape):
-#     # Clip bounding xyxy bounding boxes to image shape (height, width)
-#     boxes[:, 0].clamp_(0, img_shape[1])  # x1
-#     boxes[:, 1].clamp_(0, img_shape[0])  # y1
-#     boxes[:, 2].clamp_(0, img_shape[1])  # x2
-#     boxes[:, 3].clamp_(0, img_shape[0])  # y2
-#
-# def scale_coords(img1_shape, coords, img0_shape, ratio_pad=None):
-#     # Rescale coords (xyxy) from img1_shape to img0_shape
-#     if ratio_pad is None:  # calculate from img0_shape
-#         gain = min(img1_shape[0] / img0_shape[0], img1_shape[1] / img0_shape[1])  # gain  = old / new
-#         pad = (img1_shape[1] - img0_shape[1] * gain) / 2, (img1_shape[0] - img0_shape[0] * gain) / 2  # wh padding
-#     else:
-#         gain = ratio_pad[0][0]
-#         pad = ratio_pad[1]
-#
-#     coords[:, [0, 2]] -= pad[0]  # x padding
-#     coords[:, [1, 3]] -= pad[1]  # y padding
-#     coords[:, :4] /= gain
-#     clip_coords(coords, img0_shape)
-#     return coords
-
 def _make_grid(nx=20, ny=20):
     xv, yv = np.meshgrid(np.arange(ny), np.arange(nx))
     return np.stack((xv, yv), 2).reshape((1, 1, ny, nx, 2)).astype(np.float32)
@@ -188,15 +166,6 @@ def sigmoid(x):
     return 1/(1+np.exp(-x))
 
 def PostProcessor_YOLOV5(x):
-
-    # output = np.concatenate((output[0].reshape(1, -1, 85),
-    #                 output[1].reshape(1, -1, 85),
-    #                 output[2].reshape(1, -1, 85)), axis=1)
-
-    # 从YOLOv3开始到YOLOv5，输出层都是3层，分别对应的降采样的倍数是32、16、8
-    # 每个层上对应三个尺度的anchor
-    # 模型的预测是在20x20、40x40、80x80每个输出层的每个特征点上预测三个框，每个框预测分类！
-    # 每个框的维度大小为 cx,cy,w,h,conf + number of class
 
     grid = [np.zeros(1)] * 3  # init grid
     z = []  # inference output

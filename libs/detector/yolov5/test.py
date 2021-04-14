@@ -14,7 +14,7 @@ sys.path.append(os.path.join(CURRENT_DIR, '../../../'))
 
 import argparse
 
-from libs.detector.ssd.model import ONNXModel
+from libs.detector.ssd.onnxmodel import ONNXModel
 import time
 import cv2
 from libs.detector.utils.timer import Timer
