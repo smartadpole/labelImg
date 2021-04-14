@@ -327,10 +327,6 @@ class MainWindow(QMainWindow, WindowMixin):
                          'Ctrl+A', 'hide', getStr('showAllBoxDetail'),
                          enabled=False)
 
-        model0 = action('SSD', self.change_to_model0, icon='labels', tip = 'SSD model')
-        model1 = action('CenterNet', self.change_to_model1, icon='labels', tip = 'CenterNet model')
-        model2 = action('YOLOv5', self.change_to_model2, icon='labels', tip = 'YOLOv5 model')
-
         help = action(getStr('tutorial'), self.showTutorialDialog, None, 'help', getStr('tutorialDetail'))
         showInfo = action(getStr('info'), self.showInfoDialog, None, 'help', getStr('info'))
 
@@ -452,7 +448,22 @@ class MainWindow(QMainWindow, WindowMixin):
         self.SSD.setCheckable(True)
         # self.SSD.setChecked()
 
-        addActions(self.menus.models, (model0, model1, model2))
+        self.model0 = QAction("SSD", self)
+        self.model0.setCheckable(True)
+        self.model0.setChecked(False)
+        self.model0.triggered.connect(self.changeStatusModel0)
+
+        self.model1 = QAction("CenterNet", self)
+        self.model1.setCheckable(True)
+        self.model1.setChecked(True)
+        self.model1.triggered.connect(self.changeStatusModel1)
+
+        self.model2 = QAction("YOLOv5", self)
+        self.model2.setCheckable(True)
+        self.model2.setChecked(False)
+        self.model2.triggered.connect(self.changeStatusModel2)
+
+        addActions(self.menus.models, (self.model0, self.model1, self.model2))
 
         addActions(self.menus.file,
                    (open, opendir, copyPrevBounding, changeSavedir, openAnnotation, self.menus.recentFiles, save, save_format, saveAs, close, resetAll, deleteImg, quit))
@@ -565,9 +576,13 @@ class MainWindow(QMainWindow, WindowMixin):
         if self.filePath and os.path.isdir(self.filePath):
             self.openDirDialog(dirpath=self.filePath, silent=True)
 
-        self.centerNet = CenterNet()
         self.SSD = SSD()
+        self.centerNet = CenterNet()
         self.YOLOv5 = YOLOv5()
+
+        # Models to be used to inference are controlled in this dict
+        self.theseModels = {0: False, 1: True, 2: False}    # by default, CenterNet is used for inference
+
 
     def _loadClassNames4Detect(self):
         if os.path.isfile(self.class_name_file_4_detect):
@@ -577,7 +592,8 @@ class MainWindow(QMainWindow, WindowMixin):
 
     def _initModel(self):
         if os.path.isfile(self.model_file_4_detect):
-            self.net = ONNXModel(self.model_file_4_detect)
+            # self.net = ONNXModel(self.model_file_4_detect)
+            pass
         else:
             raise IOError("no such file {}".format(self.model_file_4_detect))
 
@@ -730,29 +746,26 @@ class MainWindow(QMainWindow, WindowMixin):
     def showTutorialDialog(self):
         subprocess.Popen(self.screencastViewer + [self.screencast])
 
-    def change_to_model0(self):
+    def changeStatusModel0(self):
         # SSD
         global onnxModelIndex
         onnxModelIndex = 0
-        self.setWindowTitle(__appname__ + "..." + MODEL_PARAMS[onnxModelIndex][1:])
-        self.model_file_4_detect = MODEL_PATH[MODEL_PARAMS[onnxModelIndex]]
-        self._initModel()
+        if self.model0.isChecked():
+            self.theseModels[onnxModelIndex] = True
 
-    def change_to_model1(self):
+    def changeStatusModel1(self):
         # CenterNet
         global onnxModelIndex
         onnxModelIndex = 1
-        self.setWindowTitle(__appname__ + "..." + MODEL_PARAMS[onnxModelIndex][1:])
-        self.model_file_4_detect = MODEL_PATH[MODEL_PARAMS[onnxModelIndex]]
-        self._initModel()
+        if self.model1.isChecked():
+            self.theseModels[onnxModelIndex] = True
 
-    def change_to_model2(self):
+    def changeStatusModel2(self):
         # YOLOv5
         global onnxModelIndex
         onnxModelIndex = 2
-        self.setWindowTitle(__appname__ + "..." + MODEL_PARAMS[onnxModelIndex][1:])
-        self.model_file_4_detect = MODEL_PATH[MODEL_PARAMS[onnxModelIndex]]
-        self._initModel()
+        if self.model2.isChecked():
+            self.theseModels[onnxModelIndex] = True
 
     def showInfoDialog(self):
         from libs.__init__ import __version__
@@ -1472,26 +1485,10 @@ class MainWindow(QMainWindow, WindowMixin):
         size = image.size()
         s = image.bits().asstring(size.width() * size.height() * image.depth() // 8)  # format 0xffRRGGBB
         image = np.fromstring(s, dtype=np.uint8).reshape((size.height(), size.width(), image.depth() // 8))
-        # image_org = cv2.imread(self.filePath)
-        # gray = cv2.cvtColor(image_org, cv2.COLOR_BGR2GRAY)
         gray = image[:, :, 0]
         gray = cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB)
 
         return gray
-
-    # class WorkThread(QThread):
-    #     trigger = pyqtSignal()
-    #
-    #     def __int__(self):
-    #         super().__init__()
-    #
-    #     def run(self):
-    #         for i in mImgList:
-    #             MainWindow.auto()
-    #             # if not select:
-    #             #     break
-    #             MainWindow.openNextImg()
-    #         self.trigger.emit()
 
     def autoLabel(self):
         if not self.fullyAutoMode:
@@ -1517,27 +1514,26 @@ class MainWindow(QMainWindow, WindowMixin):
 
 
     def auto(self):
-        if onnxModelIndex == 0:
-            shapes = self.autoLabel_SSD()
-        elif onnxModelIndex == 1:
-            shapes = self.autoLabel_CenterNet()
-        elif onnxModelIndex == 2:
-            shapes = self.autoLabel_YOLOv5()
+        shapes = []
+        for i in range(len(MODEL_PARAMS)):
+            if self.theseModels[i]:
+                results = eval("self.autoLabel" + MODEL_PARAMS[i] + "()")
+                for res in results:
+                    shapes.append(res)
+
+        # print(shapes)
 
         self.loadLabels(shapes)
         self.setDirty()
 
     def autoLabel_SSD(self):
-        image = self._loadImage4Detect()
-        return self.SSD.forward(image, self.class_names_4_detect)
+        return self.SSD.forward(self._loadImage4Detect(), self.class_names_4_detect)
 
-    def autoLabel_CenterNet(self):
-        image = self._loadImage4Detect()
-        return self.centerNet.forward(image)
+    def autoLabel_CENTER_NET(self):
+        return self.centerNet.forward(self._loadImage4Detect())
 
     def autoLabel_YOLOv5(self):
-        image = self._loadImage4Detect()
-        return self.YOLOv5.forward(image)
+        return self.YOLOv5.forward(self._loadImage4Detect())
 
     def saveFile(self, _value=False):
         if self.defaultSaveDir is not None and len(ustr(self.defaultSaveDir)):
