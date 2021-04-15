@@ -55,7 +55,7 @@ def main():
     for i, file in enumerate(sorted(image_paths)):
         timer = Timer()
         image_org = cv2.imread(file)
-
+        oriY = image_org.shape[0]
         timer.Timing("read image")
         gray = cv2.resize(image_org, (640, 640))
         img_input = pre_process(gray)
@@ -76,8 +76,8 @@ def main():
                     if label != 0:
                         continue
 
-                    # y = y / 1.6  # / 640 * 400
-                    # y2 = y2 / 1.6  # / 640 * 400
+                    # y = y / IMAGE_SIZE_YOLOV5 * oriY  # / 640 * 400
+                    # y2 = y2 / IMAGE_SIZE_YOLOV5 * oriY  # / 640 * 400
                     x, y, x2, y2, score, label = int(x), int(y), int(x2), int(y2), float(score), int(label)
                     cv2.rectangle(gray, (x, y), (x2, y2), (0, 255, 0))
                     cv2.putText(640, "CLASS_NAME"+" {:.2f}".format(score), (max(0, x), max(15, y+5))

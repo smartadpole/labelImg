@@ -1510,10 +1510,13 @@ class MainWindow(QMainWindow, WindowMixin):
     def autoThreadFunc(self):
         if self.fullyAutoMode:
             next_id = self.mImgList.index(self.filePath) + 1
-            if next_id <= len(self.mImgList):
+            tlen = len(self.mImgList)
+            print("processing {} , total {} |{}{}|\r".format(next_id, tlen, "*"*int(float(next_id/tlen)*50),
+                                                                                    " "*int(float(1-next_id/tlen)*50)))
+            if next_id <= tlen:
                 self.auto()
                 self.openNextImg()
-            if next_id == len(self.mImgList):
+            if next_id == tlen:
                 self.timer.stop()
         else:
             self.timer.stop()
@@ -1527,8 +1530,6 @@ class MainWindow(QMainWindow, WindowMixin):
                 for res in results:
                     shapes.append(res)
 
-        # print(shapes)
-
         self.loadLabels(shapes)
         self.setDirty()
 
@@ -1540,6 +1541,7 @@ class MainWindow(QMainWindow, WindowMixin):
 
     def autoLabel_YOLOv5(self):
         return self.YOLOv5.forward(self._loadImage4Detect())
+        # return self.YOLOv5.forward(cv2.imread(self.filePath))
 
     def saveFile(self, _value=False):
         if self.defaultSaveDir is not None and len(ustr(self.defaultSaveDir)):

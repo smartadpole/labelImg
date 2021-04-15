@@ -22,6 +22,8 @@ class YOLOv5(object):
             raise IOError("no such file {}".format(self.model_file_4_detect))
 
     def forward(self, image):
+        oriY = image.shape[0]
+        oriX = image.shape[1]
         image = cv2.resize(image, (IMAGE_SIZE_YOLOV5, IMAGE_SIZE_YOLOV5))
         image = yoloPreProcess(image)
         out = self.net.forward(image)
@@ -38,8 +40,10 @@ class YOLOv5(object):
                     if label != 0:  # detect humans only
                         continue
 
-                    y = y / 1.6  # / 640 * 400
-                    y2 = y2 / 1.6  # / 640 * 400
+                    y = y / IMAGE_SIZE_YOLOV5 * oriY
+                    y2 = y2 / IMAGE_SIZE_YOLOV5 * oriY
+                    x = x / IMAGE_SIZE_YOLOV5 * oriX
+                    x2 = x2 / IMAGE_SIZE_YOLOV5 * oriX
                     x, y, x2, y2, score, label = int(x), int(y), int(x2), int(y2), float(score), int(label)
                     shapes.append(("person", [(x, y), (x2, y), (x2, y2), (x, y2)], None, None, False))
 
