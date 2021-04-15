@@ -1397,6 +1397,15 @@ class MainWindow(QMainWindow, WindowMixin):
         self.filePath = None
         self.fileListWidget.clear()
         self.mImgList = self.scanAllImages(dirpath)
+
+        # the fileName list to be output, only for test
+        # labelsCount = self.mImgList
+        # labelsCount = [os.path.split(i)[1] for i in labelsCount]
+        #
+        # with open('/home/y00/testDir/labelsCount.csv', "w+") as f:
+        #     for i in labelsCount:
+        #         f.write(i + ' \n')
+
         self.openNextImg()
         for imgPath in self.mImgList:
             item = QListWidgetItem(imgPath)
