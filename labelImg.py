@@ -12,6 +12,8 @@ import subprocess
 from functools import partial
 from collections import defaultdict
 
+CURRENT_DIR = os.path.dirname(__file__)
+
 try:
     from PyQt5.QtGui import *
     from PyQt5.QtCore import *
@@ -91,8 +93,8 @@ class MainWindow(QMainWindow, WindowMixin):
         super(MainWindow, self).__init__()
         self.setWindowTitle(__appname__)
 
-        self.class_name_file_4_detect = "config/class_names.txt"
-        self.model_file_4_detect = "config/model.onnx"
+        self.class_name_file_4_detect = os.path.join(CURRENT_DIR, "config/class_names.txt")
+        self.model_file_4_detect =  os.path.join(CURRENT_DIR, "config/model.onnx")
         self._initDetect()
 
         # Load setting in the main thread
