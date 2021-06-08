@@ -14,14 +14,14 @@ sys.path.append(os.path.join(CURRENT_DIR, '../../../'))
 
 import argparse
 
-from libs.detector.ssd.model import ONNXModel
+from libs.detector.ssd.onnxmodel import ONNXModel
 import time
 import cv2
 import  numpy as np
 from libs.detector.utils.timer import Timer
-from libs.detector.ssd.postprocess.ssd import PostProcessor
+from libs.detector.ssd.postprocess.ssd import PostProcessor_SSD
 from libs.detector.utils.file import Walk
-from libs.detector.ssd.postprocess.ssd import IMAGE_SIZE
+from libs.detector.ssd.postprocess.ssd import IMAGE_SIZE_SSD
 
 PIXEL_MEAN = [123, 117, 104]
 THRESHOLD = [1, 1, 1, 1, 0.195, 1, 1, 0.353, 1, 1, 1]
@@ -58,7 +58,7 @@ def main():
         gray = cv2.cvtColor(image_org, cv2.COLOR_BGR2GRAY)
         gray = cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB)
         timer.Timing("read image")
-        img_resize = cv2.resize(gray, (IMAGE_SIZE, IMAGE_SIZE), interpolation = cv2.INTER_CUBIC)
+        img_resize = cv2.resize(gray, (IMAGE_SIZE_SSD, IMAGE_SIZE_SSD), interpolation = cv2.INTER_CUBIC)
         # img_input = img_input[..., ::-1] # BGR to RGB
         img_input = (img_resize - PIXEL_MEAN).astype(np.float32).transpose((2, 0, 1))[np.newaxis, ::]
         timer.Timing("preprocess")
@@ -66,7 +66,7 @@ def main():
         out = net.forward(img_input)
         timer.Timing("inference")
         print()
-        results_batch = PostProcessor(out[0], out[1], out[2])
+        results_batch = PostProcessor_SSD(out[0], out[1], out[2])
 
         for result in results_batch:
             if len(result) > 0:

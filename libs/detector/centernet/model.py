@@ -18,7 +18,7 @@ class CenterNet(object):
         if os.path.isfile(file):
             self.net = ONNXModel(file)
         else:
-            raise IOError("no such file {}".format(self.model_file_4_detect))
+            raise IOError("no such file {}".format(file))
 
     def forward(self, img_input):
         image, meta = centerNetPreProcess(img_input, IMAGE_SIZE_CENTER_NET, 1, None)

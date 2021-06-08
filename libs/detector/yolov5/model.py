@@ -19,7 +19,7 @@ class YOLOv5(object):
         if os.path.isfile(file):
             self.net = ONNXModel(file)
         else:
-            raise IOError("no such file {}".format(self.model_file_4_detect))
+            raise IOError("no such file {}".format(file))
 
     def forward(self, image):
         oriY = image.shape[0]
