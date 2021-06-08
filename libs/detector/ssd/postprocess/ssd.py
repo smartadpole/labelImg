@@ -12,7 +12,8 @@ from yacs.config import CfgNode as CN
 from libs.detector.utils.utils import Softmax
 import cv2
 
-IMAGE_SIZE_SSD = 320
+IMAGE_SIZE = 320
+# IMAGE_SIZE = 320
 PIXEL_MEAN = [123, 117, 104]
 THRESHOLD = [1, 1, 1, 0.1, 0.1, 1, 1, 0.15, 1, 1, 1]
 
@@ -80,10 +81,10 @@ def Filter(width, height, batches_scores: np.ndarray, batches_boxes:np.ndarray):
 
     return result_batch
 
-def PostProcessor_SSD(cls_logits, bbox_pred, priors):
+def PostProcessor(cls_logits, bbox_pred, priors):
     scores = Softmax(cls_logits, axis=2)
     boxes = Locations2Boxes(bbox_pred, priors, MODEL.CENTER_VARIANCE, MODEL.SIZE_VARIANCE)
     boxes = Center2Corner(boxes)
-    detections = Filter(IMAGE_SIZE_SSD, IMAGE_SIZE_SSD, scores, boxes)
+    detections = Filter(IMAGE_SIZE, IMAGE_SIZE, scores, boxes)
     return detections
 
