@@ -54,6 +54,8 @@ from libs.detector.ssd.model import ONNXModel
 from libs.detector.ssd.postprocess.ssd import PostProcessor
 import numpy as np
 import cv2
+from libs.utils.file import MkdirSimple
+from libs.utils.utils import *
 
 from libs.detector.ssd.postprocess.ssd import IMAGE_SIZE, PIXEL_MEAN, THRESHOLD
 
@@ -1128,6 +1130,7 @@ class MainWindow(QMainWindow, WindowMixin):
             self.paintCanvas()
             self.addRecentFile(self.filePath)
             self.toggleActions(True)
+
             self.showBoundingBoxFromAnnotationFile(filePath)
 
             self.setWindowTitle(__appname__ + ' ' + filePath)
@@ -1143,10 +1146,16 @@ class MainWindow(QMainWindow, WindowMixin):
 
     def showBoundingBoxFromAnnotationFile(self, filePath):
         if self.defaultSaveDir is not None:
-            basename = os.path.basename(os.path.splitext(filePath)[0])
-            filedir = filePath.split(basename)[0].split(os.path.sep)[-2:-1][0]
+
+            subfilepath = self.filePath[self.dirname_len+1:]
+            basename = os.path.splitext(subfilepath)[0]
+
             xmlPath = os.path.join(self.defaultSaveDir, basename + XML_EXT)
             txtPath = os.path.join(self.defaultSaveDir, basename + TXT_EXT)
+
+            # TODO : for json file output
+            basename = os.path.basename(os.path.splitext(filePath)[0])
+            filedir = filePath.split(basename)[0].split(os.path.sep)[-2:-1][0]
             jsonPath = os.path.join(self.defaultSaveDir, filedir + JSON_EXT)
 
             """Annotation file priority:
@@ -1309,6 +1318,7 @@ class MainWindow(QMainWindow, WindowMixin):
 
         self.lastOpenDir = dirpath
         self.dirname = dirpath
+        self.dirname_len = len(self.dirname)
         self.filePath = None
         self.fileListWidget.clear()
         self.mImgList = self.scanAllImages(dirpath)
@@ -1316,6 +1326,8 @@ class MainWindow(QMainWindow, WindowMixin):
         for imgPath in self.mImgList:
             item = QListWidgetItem(imgPath)
             self.fileListWidget.addItem(item)
+
+        return self
 
     def verifyImg(self, _value=False):
         # Proceding next image without dialog if having any label
@@ -1445,9 +1457,11 @@ class MainWindow(QMainWindow, WindowMixin):
     def saveFile(self, _value=False):
         if self.defaultSaveDir is not None and len(ustr(self.defaultSaveDir)):
             if self.filePath:
-                imgFileName = os.path.basename(self.filePath)
+                imgFileName = self.filePath[self.dirname_len+1:]
                 savedFileName = os.path.splitext(imgFileName)[0]
                 savedPath = os.path.join(ustr(self.defaultSaveDir), savedFileName)
+                if not os.path.exists(os.path.dirname(savedPath)):
+                    os.makedirs(os.path.dirname(savedPath))
                 self._saveFile(savedPath)
         else:
             imgFileDir = os.path.dirname(self.filePath)
