@@ -13,11 +13,11 @@ CURRENT_DIR = os.path.dirname(__file__)
 sys.path.append(os.path.join(CURRENT_DIR, '../../../'))
 
 from yacs.config import CfgNode as CN
-import torch
 from libs.detector.utils.python_nms import centernet_nms
 from libs.detector.centernet.utils import get_affine_transform
+from libs.detector.utils.utils import TopK
 
-IMAGE_SIZE = 320
+IMAGE_SIZE_CENTER_NET = 320
 
 MODEL = CN()
 MODEL.CENTER_VARIANCE = 0.1
@@ -30,38 +30,36 @@ import numpy as np
 NMS_THRESHOLD = 0.45
 CONFIDENCE_THRESHOLD = 0.4
 
+
 def _gather_feat(feat, ind):
-    dim  = feat.size(2)
-    ind  = ind.unsqueeze(2).expand(ind.size(0), ind.size(1), dim)
-    feat = feat.gather(1, ind)
-    return feat
+    dim = feat.shape[2]
+
+    return feat[:, np.squeeze(ind), :]
 
 def _transpose_and_gather_feat(feat, ind):
-    feat = torch.from_numpy(feat)
-    feat = feat.permute(0, 2, 3, 1).contiguous()
-    feat = feat.view(feat.size(0), -1, feat.size(3))
+    feat = feat.transpose(0, 2, 3, 1)
+    feat = feat.reshape(feat.shape[0], -1, feat.shape[3])
     feat = _gather_feat(feat, ind)
-    feat = feat.data.cpu().numpy()
+    feat = feat
     return feat
 
 def _topk(scores, K=100):
     batch, cat, height, width = scores.shape
-    scores = torch.from_numpy(scores)
 
-    topk_scores, topk_inds = torch.topk(scores.reshape(batch, cat, -1), K)
+    topk_scores, topk_inds = TopK(scores.reshape(batch, cat, -1), K, axis=2)
 
     topk_inds = topk_inds % (height * width)
-    topk_ys = (topk_inds / width).int().float()
-    topk_xs = (topk_inds % width).int().float()
+    topk_ys = (topk_inds / width).astype(np.float32)
+    topk_xs = (topk_inds % width).astype(np.float32)
 
-    topk_score, topk_ind = torch.topk(topk_scores.view(batch, -1), K)
-    topk_clses = (topk_ind / K).int()
+    topk_score, topk_ind = TopK(topk_scores.reshape(batch, -1), K, axis=1)
+    topk_clses = (topk_ind / K).astype(np.int32)
     topk_inds = _gather_feat(
-        topk_inds.view(batch, -1, 1), topk_ind).view(batch, K)
-    topk_ys = _gather_feat(topk_ys.view(batch, -1, 1), topk_ind).view(batch, K)
-    topk_xs = _gather_feat(topk_xs.view(batch, -1, 1), topk_ind).view(batch, K)
+        topk_inds.reshape(batch, -1, 1), topk_ind).reshape(batch, K)
+    topk_ys = _gather_feat(topk_ys.reshape(batch, -1, 1), topk_ind).reshape(batch, K)
+    topk_xs = _gather_feat(topk_xs.reshape(batch, -1, 1), topk_ind).reshape(batch, K)
 
-    return topk_score, topk_inds, topk_clses, topk_ys.data.cpu().numpy(), topk_xs.data.cpu().numpy()
+    return topk_score, topk_inds, topk_clses, topk_ys, topk_xs
 
 
 def ctdet_decode(heat, wh, reg=None, K=100):
@@ -82,8 +80,8 @@ def ctdet_decode(heat, wh, reg=None, K=100):
         ys = ys.reshape(batch, K, 1) + 0.5
     wh = _transpose_and_gather_feat(wh, inds)
     wh = wh.reshape(batch, K, 2)
-    clses = clses.view(batch, K, 1).float()
-    scores = scores.view(batch, K, 1)
+    clses = clses.reshape(batch, K, 1).astype(np.float32)
+    scores = scores.reshape(batch, K, 1)
     bboxes = np.concatenate([xs - wh[..., 0:1] / 2,
                         ys - wh[..., 1:2] / 2,
                         xs + wh[..., 0:1] / 2,
@@ -133,7 +131,7 @@ def post_process(dets, meta, scale=1):
         dets[0][j][:, :4] /= scale
     return dets[0]
 
-def PostProcessor(output, meta, K=100):
+def PostProcessor_CENTER_NET(output, meta, K=100):
 
     output = output[-1]
     hm = output[:, 0:1, :, :]

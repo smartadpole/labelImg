@@ -48,12 +48,25 @@ from libs.create_ml_io import CreateMLReader
 from libs.create_ml_io import JSON_EXT
 from libs.ustr import ustr
 from libs.hashableQListWidgetItem import HashableQListWidgetItem
-from libs.detector.ssd.model import ONNXModel
-from libs.detector.ssd.postprocess.ssd import PostProcessor
+from libs.detector.ssd.onnxmodel import ONNXModel
+from libs.detector.ssd.postprocess.ssd import PostProcessor_SSD
 import numpy as np
 import cv2
 
-from libs.detector.ssd.postprocess.ssd import IMAGE_SIZE, PIXEL_MEAN, THRESHOLD
+from libs.detector.ssd.model import SSD
+from libs.detector.centernet.model import CenterNet
+from libs.detector.yolov5.model import YOLOv5
+
+
+onnxModelIndex = 0
+MODEL_PARAMS = {0: "_SSD", 1: "_CENTER_NET", 2: "_YOLOv5"}  # TODO models later should be added here
+MODEL_PATH = {"_SSD": "config/cleaner/ssd.onnx",
+              "_CENTER_NET": "config/human/centernet.onnx",
+              "_YOLOv5": "config/human/yolov5.onnx",}
+
+# IMG_SIZE_DICT = {'IMAGE_SIZE'+MODEL_PARAMS[0]: 320,
+#                  'IMAGE_SIZE'+MODEL_PARAMS[1]: 320,
+#                  'IMAGE_SIZE'+MODEL_PARAMS[2]: 640,}
 
 __appname__ = 'labelImg'
 
@@ -84,6 +97,9 @@ class WindowMixin(object):
         return toolbar
 
 
+
+
+
 class MainWindow(QMainWindow, WindowMixin):
     FIT_WINDOW, FIT_WIDTH, MANUAL_ZOOM = list(range(3))
 
@@ -91,8 +107,10 @@ class MainWindow(QMainWindow, WindowMixin):
         super(MainWindow, self).__init__()
         self.setWindowTitle(__appname__)
 
-        self.class_name_file_4_detect = "config/class_names.txt"
-        self.model_file_4_detect = "config/model.onnx"
+        self.fullyAutoMode = False
+
+        self.class_name_file_4_detect = "config/cleaner/class_names.txt"
+        self.model_file_4_detect = MODEL_PATH[MODEL_PARAMS[onnxModelIndex]]
         self._initDetect()
 
         # Load setting in the main thread
@@ -224,8 +242,11 @@ class MainWindow(QMainWindow, WindowMixin):
         quit = action(getStr('quit'), self.close,
                       'Ctrl+Q', 'quit', getStr('quitApp'))
 
+        global autoLabel
         autoLabel = action(getStr('autoLabel'), self.autoLabel,
                       's', 'autoLabel', getStr('autoLabelDetail'))
+
+
 
         open = action(getStr('openFile'), self.openFile,
                       'Ctrl+O', 'open', getStr('openFileDetail'))
@@ -395,6 +416,7 @@ class MainWindow(QMainWindow, WindowMixin):
             edit=self.menu('&Edit'),
             view=self.menu('&View'),
             help=self.menu('&Help'),
+            models=self.menu('&Models'),
             recentFiles=QMenu('Open &Recent'),
             labelList=labelMenu)
 
@@ -415,6 +437,34 @@ class MainWindow(QMainWindow, WindowMixin):
         self.displayLabelOption.setChecked(settings.get(SETTING_PAINT_LABEL, False))
         self.displayLabelOption.triggered.connect(self.togglePaintLabelsOption)
 
+        # Full auto label controller
+        self.FullyAutoLabelOption = QAction("Fully Auto Label Mode", self)
+        self.FullyAutoLabelOption.setCheckable(True)
+        self.FullyAutoLabelOption.setChecked(False)
+        self.FullyAutoLabelOption.triggered.connect(self.toggleFullyAutoLabel)
+
+        # Models
+        self.SSD = QAction('SSD', self)
+        self.SSD.setCheckable(True)
+        # self.SSD.setChecked()
+
+        self.model0 = QAction("SSD", self)
+        self.model0.setCheckable(True)
+        self.model0.setChecked(False)
+        self.model0.triggered.connect(self.changeStatusModel0)
+
+        self.model1 = QAction("CenterNet", self)
+        self.model1.setCheckable(True)
+        self.model1.setChecked(True)
+        self.model1.triggered.connect(self.changeStatusModel1)
+
+        self.model2 = QAction("YOLOv5", self)
+        self.model2.setCheckable(True)
+        self.model2.setChecked(False)
+        self.model2.triggered.connect(self.changeStatusModel2)
+
+        addActions(self.menus.models, (self.model0, self.model1, self.model2))
+
         addActions(self.menus.file,
                    (open, opendir, copyPrevBounding, changeSavedir, openAnnotation, self.menus.recentFiles, save, save_format, saveAs, close, resetAll, deleteImg, quit))
         addActions(self.menus.help, (help, showInfo))
@@ -422,6 +472,7 @@ class MainWindow(QMainWindow, WindowMixin):
             self.autoSaving,
             self.singleClassMode,
             self.displayLabelOption,
+            self.FullyAutoLabelOption,
             labels, advancedMode, None,
             hideAll, showAll, None,
             zoomIn, zoomOut, zoomOrg, None,
@@ -525,6 +576,14 @@ class MainWindow(QMainWindow, WindowMixin):
         if self.filePath and os.path.isdir(self.filePath):
             self.openDirDialog(dirpath=self.filePath, silent=True)
 
+        self.SSD = SSD()
+        self.centerNet = CenterNet()
+        self.YOLOv5 = YOLOv5()
+
+        # Models to be used to inference are controlled in this dict
+        self.theseModels = {0: False, 1: True, 2: False}    # by default, CenterNet is used for inference
+
+
     def _loadClassNames4Detect(self):
         if os.path.isfile(self.class_name_file_4_detect):
             self.class_names_4_detect = [name.strip('\n')for name in open(self.class_name_file_4_detect).readlines()]
@@ -533,7 +592,8 @@ class MainWindow(QMainWindow, WindowMixin):
 
     def _initModel(self):
         if os.path.isfile(self.model_file_4_detect):
-            self.net = ONNXModel(self.model_file_4_detect)
+            # self.net = ONNXModel(self.model_file_4_detect)
+            pass
         else:
             raise IOError("no such file {}".format(self.model_file_4_detect))
 
@@ -685,6 +745,33 @@ class MainWindow(QMainWindow, WindowMixin):
     ## Callbacks ##
     def showTutorialDialog(self):
         subprocess.Popen(self.screencastViewer + [self.screencast])
+
+    def changeStatusModel0(self):
+        # SSD
+        global onnxModelIndex
+        onnxModelIndex = 0
+        if self.model0.isChecked():
+            self.theseModels[onnxModelIndex] = True
+        else:
+            self.theseModels[onnxModelIndex] = False
+
+    def changeStatusModel1(self):
+        # CenterNet
+        global onnxModelIndex
+        onnxModelIndex = 1
+        if self.model1.isChecked():
+            self.theseModels[onnxModelIndex] = True
+        else:
+            self.theseModels[onnxModelIndex] = False
+
+    def changeStatusModel2(self):
+        # YOLOv5
+        global onnxModelIndex
+        onnxModelIndex = 2
+        if self.model2.isChecked():
+            self.theseModels[onnxModelIndex] = True
+        else:
+            self.theseModels[onnxModelIndex] = False
 
     def showInfoDialog(self):
         from libs.__init__ import __version__
@@ -1310,6 +1397,15 @@ class MainWindow(QMainWindow, WindowMixin):
         self.filePath = None
         self.fileListWidget.clear()
         self.mImgList = self.scanAllImages(dirpath)
+
+        # the fileName list to be output, only for test
+        # labelsCount = self.mImgList
+        # labelsCount = [os.path.split(i)[1] for i in labelsCount]
+        #
+        # with open('/home/y00/testDir/labelsCount.csv', "w+") as f:
+        #     for i in labelsCount:
+        #         f.write(i + ' \n')
+
         self.openNextImg()
         for imgPath in self.mImgList:
             item = QListWidgetItem(imgPath)
@@ -1385,6 +1481,8 @@ class MainWindow(QMainWindow, WindowMixin):
         if filename:
             self.loadFile(filename)
 
+        return filename
+
     def openFile(self, _value=False):
         if not self.mayContinue():
             return
@@ -1397,48 +1495,62 @@ class MainWindow(QMainWindow, WindowMixin):
                 filename = filename[0]
             self.loadFile(filename)
 
-    def _preprocess(self, image):
-        h, w, _ = image.shape
-        image = cv2.resize(image, (IMAGE_SIZE, IMAGE_SIZE), interpolation = cv2.INTER_CUBIC)
-        image = (image - PIXEL_MEAN).astype(np.float32).transpose((2, 0, 1))[np.newaxis, ::]
-
-        return image, (w/IMAGE_SIZE, h/IMAGE_SIZE)
-
     def _loadImage4Detect(self):
         image = self.image
         size = image.size()
         s = image.bits().asstring(size.width() * size.height() * image.depth() // 8)  # format 0xffRRGGBB
         image = np.fromstring(s, dtype=np.uint8).reshape((size.height(), size.width(), image.depth() // 8))
-        # image_org = cv2.imread(self.filePath)
-        # gray = cv2.cvtColor(image_org, cv2.COLOR_BGR2GRAY)
         gray = image[:, :, 0]
         gray = cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB)
 
         return gray
 
     def autoLabel(self):
-        image = self._loadImage4Detect()
-        image, ratio = self._preprocess(image)
-        out = self.net.forward(image)
-        results_batch =  PostProcessor(out[0], out[1], out[2])
+        if not self.fullyAutoMode:
+            # if not in the fullyAutoMode
+            self.auto()
+        else:
+            # in the fullyAutoMode
+            self.i = 0
+            self.timer = QTimer(self)
+            self.timer.start(20)
+            self.timer.timeout.connect(self.autoThreadFunc)
 
-        # TODO : get rect
+    def autoThreadFunc(self):
+        if self.fullyAutoMode:
+            next_id = self.mImgList.index(self.filePath) + 1
+            tlen = len(self.mImgList)
+            print("processing {} , total {} |{}{}|\r".format(next_id, tlen, "*"*int(float(next_id/tlen)*50),
+                                                                                    " "*int(float(1-next_id/tlen)*50)))
+            if next_id <= tlen:
+                self.auto()
+                self.openNextImg()
+            if next_id == tlen:
+                self.timer.stop()
+        else:
+            self.timer.stop()
+
+
+    def auto(self):
         shapes = []
-        for result in results_batch:
-            if len(result) > 0:
-                result = result.tolist()
-                for r in result:
-                    x, y, x2, y2, label, score = r
-                    x, y, x2, y2, label = int(x)*ratio[0], int(y)*ratio[1], int(x2)*ratio[0], int(y2)*ratio[1], int(label)
-                    if score < THRESHOLD[label] or label == 0:
-                        continue
-                    # cv2.rectangle(image, (x, y), (x2, y2), (0, 255, 0))
-                    # cv2.putText(image, self.class_names_4_detectint[label-1]+" {:.2f}".format(score), (max(0, x), max(15, y+5))
-                    #             ,  cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,0,255), 1)
-                    shapes.append((self.class_names_4_detect[label-1], [(x, y), (x2, y), (x2, y2), (x, y2)], None, None, False))
+        for i in range(len(MODEL_PARAMS)):
+            if self.theseModels[i]:
+                results = eval("self.autoLabel" + MODEL_PARAMS[i] + "()")
+                for res in results:
+                    shapes.append(res)
 
-        self.loadLabels(shapes) # TODO add origin
+        self.loadLabels(shapes)
         self.setDirty()
+
+    def autoLabel_SSD(self):
+        return self.SSD.forward(self._loadImage4Detect(), self.class_names_4_detect)
+
+    def autoLabel_CENTER_NET(self):
+        return self.centerNet.forward(self._loadImage4Detect())
+
+    def autoLabel_YOLOv5(self):
+        return self.YOLOv5.forward(self._loadImage4Detect())
+        # return self.YOLOv5.forward(cv2.imread(self.filePath))
 
     def saveFile(self, _value=False):
         if self.defaultSaveDir is not None and len(ustr(self.defaultSaveDir)):
@@ -1634,8 +1746,19 @@ class MainWindow(QMainWindow, WindowMixin):
         for shape in self.canvas.shapes:
             shape.paintLabel = self.displayLabelOption.isChecked()
 
+    def toggleFullyAutoLabel(self):
+        if self.FullyAutoLabelOption.isChecked():
+            # if this button is checked
+            autoLabel.setText("Fully autoLabel")
+            self.fullyAutoMode = True
+        else:
+            # if this button is NOT checked
+            autoLabel.setText("autoLabel")
+            self.fullyAutoMode = False
+
     def toogleDrawSquare(self):
         self.canvas.setDrawingShapeToSquare(self.drawSquaresOption.isChecked())
+
 
 def inverted(color):
     return QColor(*[255 - v for v in color.getRgb()])

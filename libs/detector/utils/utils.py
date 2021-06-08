@@ -42,6 +42,30 @@ def partition_arg_topK(matrix, K, axis=0):
         return a_part[:, 0:K][column_index, a_sec_argsort_K], 0
 
 def TopK(matrix, K, axis=1):
+    """
+    created at 2021.4.7 by jiao@1054568970@qq.com
+    @description:
+        In the last version of this function, when axis != 0, there would be a 'dimentional explotion' problem
+        Now this bug is fixed and the last version is reserved below as *TopK_old*
+
+    """
+    if axis == 0:
+        row_index = np.arange(matrix.shape[1 - axis])
+        topk_index = np.argpartition(-matrix, K, axis=axis)[0:K, :]
+        topk_data = matrix[topk_index, row_index]
+        topk_index_sort = np.argsort(-topk_data,axis=axis)
+        topk_data_sort = topk_data[topk_index_sort,row_index]
+        topk_index_sort = topk_index[0:K,:][topk_index_sort,row_index]
+    else:
+        topk_index = np.argpartition(-matrix, K-1, axis=axis)[..., 0:K]
+        topk_data = matrix[..., topk_index.squeeze()]
+        topk_index_sort = np.argsort(-topk_data, axis=axis)
+        topk_data_sort = topk_data[..., topk_index_sort.squeeze()]
+        topk_index_sort = topk_index[...,0:K][..., topk_index_sort.squeeze()]
+
+    return topk_data_sort, topk_index_sort
+
+def TopK_old(matrix, K, axis=1):
     if axis == 0:
         row_index = np.arange(matrix.shape[1 - axis])
         topk_index = np.argpartition(-matrix, K, axis=axis)[0:K, :]
@@ -51,14 +75,12 @@ def TopK(matrix, K, axis=1):
         topk_index_sort = topk_index[0:K,:][topk_index_sort,row_index]
     else:
         column_index = np.arange(matrix.shape[1 - axis])[:, None]
-        topk_index = np.argpartition(-matrix, K, axis=axis)[:, 0:K]
+        topk_index = np.argpartition(-matrix, K, axis=axis)[..., 0:K]
         topk_data = matrix[column_index, topk_index]
         topk_index_sort = np.argsort(-topk_data, axis=axis)
         topk_data_sort = topk_data[column_index, topk_index_sort]
         topk_index_sort = topk_index[:,0:K][column_index,topk_index_sort]
     return topk_data_sort, topk_index_sort
-
-
 
 def TestSoftmax():
     A = [[1, 1, 5],

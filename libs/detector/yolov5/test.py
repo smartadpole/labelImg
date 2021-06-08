@@ -1,11 +1,11 @@
 #!/usr/bin/python3 python
 # encoding: utf-8
 '''
-@author: 孙昊
-@contact: smartadpole@163.com
+@author: 焦子傲
+@contact: 1054568970@qq.com
 @file: test.py
-@time: 2021/2/2 下午5:49
-@desc: 
+@time: 2021/4/9 14:05
+@desc:
 '''
 import sys, os
 
@@ -17,19 +17,19 @@ import argparse
 from libs.detector.ssd.onnxmodel import ONNXModel
 import time
 import cv2
-import  numpy as np
 from libs.detector.utils.timer import Timer
-from libs.detector.ssd.postprocess.ssd import PostProcessor_SSD
 from libs.detector.utils.file import Walk
-from libs.detector.ssd.postprocess.ssd import IMAGE_SIZE_SSD
+from libs.detector.yolov5.postprocess.postprocess import IMAGE_SIZE_YOLOV5, THRESHOLD_YOLOV5
+from libs.detector.yolov5.postprocess.postprocess import PostProcessor_YOLOV5
+from libs.detector.yolov5.preprocess import pre_process
 
-PIXEL_MEAN = [123, 117, 104]
-THRESHOLD = [1, 1, 1, 1, 0.195, 1, 1, 0.353, 1, 1, 1]
+import torch
+
 CLASS_NAMES = [
     'background',
-    'pet-cat', 'pet-dog', 'excrement', 'wire', 'key',
-    'weighing-scale', 'shoes', 'socks', 'power-strip', 'base',
+    'person',
 ]
+SCORE_ID = 4
 
 def GetArgs():
     parser = argparse.ArgumentParser(description="",
@@ -55,40 +55,38 @@ def main():
     for i, file in enumerate(sorted(image_paths)):
         timer = Timer()
         image_org = cv2.imread(file)
-        gray = cv2.cvtColor(image_org, cv2.COLOR_BGR2GRAY)
-        gray = cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB)
+        oriY = image_org.shape[0]
         timer.Timing("read image")
-        img_resize = cv2.resize(gray, (IMAGE_SIZE_SSD, IMAGE_SIZE_SSD), interpolation = cv2.INTER_CUBIC)
-        # img_input = img_input[..., ::-1] # BGR to RGB
-        img_input = (img_resize - PIXEL_MEAN).astype(np.float32).transpose((2, 0, 1))[np.newaxis, ::]
+        gray = cv2.resize(image_org, (640, 640))
+        img_input = pre_process(gray)
         timer.Timing("preprocess")
 
         out = net.forward(img_input)
+        # pred = model(img, augment=opt.augment)[0]
         timer.Timing("inference")
         print()
-        results_batch = PostProcessor_SSD(out[0], out[1], out[2])
+        results_batch = PostProcessor_YOLOV5(out)
 
         for result in results_batch:
             if len(result) > 0:
                 result = result.tolist()
+                result = [r for r in result if r[SCORE_ID] > THRESHOLD_YOLOV5]  # confidence threshold
                 for r in result:
-                    x, y, x2, y2, label, score = r
-                    x, y, x2, y2, label, score = int(x), int(y), int(x2), int(y2), int(label), float(score)
-
-                    if score < THRESHOLD[label]:
+                    x, y, x2, y2, score, label = r
+                    if label != 0:
                         continue
-                    cv2.rectangle(img_resize, (x, y), (x2, y2), (0, 255, 0))
-                    cv2.putText(img_resize, CLASS_NAMES[int(label)]+" {:.2f}".format(score), (max(0, x), max(15, y+5))
+
+                    # y = y / IMAGE_SIZE_YOLOV5 * oriY  # / 640 * 400
+                    # y2 = y2 / IMAGE_SIZE_YOLOV5 * oriY  # / 640 * 400
+                    x, y, x2, y2, score, label = int(x), int(y), int(x2), int(y2), float(score), int(label)
+                    cv2.rectangle(gray, (x, y), (x2, y2), (0, 255, 0))
+                    cv2.putText(640, "CLASS_NAME"+" {:.2f}".format(score), (max(0, x), max(15, y+5))
                                 ,  cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,0,255), 1)
-                image = cv2.resize(img_resize, (int(img_resize.shape[1]/img_resize.shape[0]*960), 960))
+                    # cv2.putText(img_resize, CLASS_NAMES[int(label)]+" {:.2f}".format(score), (max(0, x), max(15, y+5))
+                    #             ,  cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,0,255), 1)
+                image = cv2.resize(gray, (int(gray.shape[1]/gray.shape[0]*960), 960))
                 cv2.imshow("draw", image)
                 cv2.waitKey(0)
-
-        # print(labels[np.argmax(out[0][0])])
-        # cv2.putText(img_ori, labels[np.argmax(out[0][0])], (50,50), cv2.FONT_HERSHEY_COMPLEX, 0.5, (100, 200, 200), 1)
-        # cv2.imshow("1", img_ori)
-        # cv2.waitKey(0)
-
 
 if __name__ == '__main__':
     main()
