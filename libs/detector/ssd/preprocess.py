@@ -2,7 +2,7 @@
 # encoding: utf-8
 '''
 @author: 焦子傲
-@contact: 1054568970@.com
+@contact: jiao1943@.com
 @file: model.py
 @time: 2021/4/14 10:20
 @desc:
