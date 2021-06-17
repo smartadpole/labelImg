@@ -68,6 +68,7 @@ MODEL_PATH = {"_SSD": "config/cleaner/ssd.onnx",
               "_CENTER_NET": "config/human/centernet.onnx",
               "_YOLOv5": "config/human/yolov5.onnx",}
 MAX_IOU_FOR_DELETE = 0.9
+ADD_RECTBOX_BY_SERIES_NUM = 10
 # IMG_SIZE_DICT = {'IMAGE_SIZE'+MODEL_PARAMS[0]: 320,
 #                  'IMAGE_SIZE'+MODEL_PARAMS[1]: 320,
 #                  'IMAGE_SIZE'+MODEL_PARAMS[2]: 640,}
@@ -152,6 +153,7 @@ class MainWindow(QMainWindow, WindowMixin):
         self.prevLabelText = ''
 
         self.autoDelete = 0
+        self.autoAdd = 0
 
         listLayout = QVBoxLayout()
         listLayout.setContentsMargins(0, 0, 0, 0)
@@ -314,7 +316,9 @@ class MainWindow(QMainWindow, WindowMixin):
         delete = action(getStr('delBox'), self.deleteSelectedShape,
                         'Delete', 'delete', getStr('delBoxDetail'), enabled=False)
         deleteSeries = action('Delete Rectbox by IoU', self.deleteSeries,
-                        'Shift+Delete', 'delete', getStr('delBoxDetail'), enabled=False)
+                        'Shift+Delete', 'delete', 'This func is configued through variable MAX_IOU_FOR_DELETE', enabled=False)
+        addSeries = action('Add Rectboxs by Series', self.addSelectedShape,
+                        'Shift+D', 'copy', 'This func is configued through variable ADD_RECTBOX_BY_SERIES_NUM', enabled=False)
         copy = action(getStr('dupBox'), self.copySelectedShape,
                       'Ctrl+D', 'copy', getStr('dupBoxDetail'),
                       enabled=False)
@@ -396,7 +400,7 @@ class MainWindow(QMainWindow, WindowMixin):
 
         # Store actions for further handling.
         self.actions = struct(save=save, save_format=save_format, saveAs=saveAs, open=open, close=close, resetAll = resetAll, deleteImg = deleteImg,
-                              lineColor=color1, create=create, delete=delete, deleteSeries=deleteSeries, edit=edit, copy=copy,
+                              lineColor=color1, create=create, delete=delete, deleteSeries=deleteSeries, addSeries=addSeries, edit=edit, copy=copy,
                               createMode=createMode, editMode=editMode, advancedMode=advancedMode,
                               shapeLineColor=shapeLineColor, shapeFillColor=shapeFillColor,
                               zoom=zoom, zoomIn=zoomIn, zoomOut=zoomOut, zoomOrg=zoomOrg,
@@ -407,7 +411,7 @@ class MainWindow(QMainWindow, WindowMixin):
                               beginner=(), advanced=(),
                               editMenu=(edit, copy, delete,
                                         None, color1, self.drawSquaresOption),
-                              beginnerContext=(create, edit, copy, delete, deleteSeries),
+                              beginnerContext=(create, edit, copy, delete, addSeries, deleteSeries),
                               advancedContext=(createMode, editMode, edit, copy,
                                                delete, shapeLineColor, shapeFillColor),
                               onLoadActive=(
@@ -889,6 +893,7 @@ class MainWindow(QMainWindow, WindowMixin):
                 self.labelList.clearSelection()
         self.actions.delete.setEnabled(selected)
         self.actions.deleteSeries.setEnabled(selected)
+        self.actions.addSeries.setEnabled(selected)
         self.actions.copy.setEnabled(selected)
         self.actions.edit.setEnabled(selected)
         self.actions.shapeLineColor.setEnabled(selected)
@@ -997,6 +1002,18 @@ class MainWindow(QMainWindow, WindowMixin):
         self.addLabel(self.canvas.copySelectedShape())
         # fix copy and delete
         self.shapeSelectionChanged(True)
+
+    def addSelectedShape(self):
+        self.tmpShape = self.canvas.selectedShape.copy()
+        self.autoAdd = 1
+        for i in range(ADD_RECTBOX_BY_SERIES_NUM):
+            self.openNextImg()
+        self.autoAdd = 0
+
+    def addOneShape(self):
+        self.addLabel(self.canvas.copyOneShape(self.tmpShape))
+        self.setDirty()
+        # self.shapeSelectionChanged(True)
 
     def comboSelectionChanged(self, index):
         text = self.comboBox.cb.itemText(index)
@@ -1488,6 +1505,9 @@ class MainWindow(QMainWindow, WindowMixin):
         if filename:
             self.loadFile(filename)
 
+        if self.autoAdd == 1:
+            self.addOneShape()
+
         if self.autoDelete == 1:
             if self.canvas.shapes != []:
                 tmp_judge = []
@@ -1717,17 +1737,8 @@ class MainWindow(QMainWindow, WindowMixin):
         self.deleteShape(self.tmpShape)
         self.canvas.deleteOneShape(self.tmpShape)
 
-
         while self.autoDelete == 1:
             self.openNextImg()
-        # for shape_other in self.canvas.shapes:
-        #     self.computeIoU(self.deleteShape, shape_other, Iou_max=0.9)
-
-
-
-        # self.itemsToShapes[item]
-
-
 
     def chshapeLineColor(self):
         color = self.colorDialog.getColor(self.lineColor, u'Choose line color',
