@@ -18,7 +18,9 @@ import numpy as np
 # -*-coding: utf-8 -*-
 
 import os, sys
+sys.path.append("/work/LIB/CPP/onnx/libonnxruntime.so")
 import onnxruntime
+
 
 class ONNXModel():
     def __init__(self, onnx_file):

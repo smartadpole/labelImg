@@ -67,7 +67,7 @@ MODEL_PARAMS = {0: "_SSD", 1: "_CENTER_NET", 2: "_YOLOv5"}  # TODO models later 
 MODEL_PATH = {"_SSD": "config/cleaner/ssd.onnx",
               "_CENTER_NET": "config/human/centernet.onnx",
               "_YOLOv5": "config/human/yolov5.onnx",}
-
+MAX_IOU_FOR_DELETE = 0.9
 # IMG_SIZE_DICT = {'IMAGE_SIZE'+MODEL_PARAMS[0]: 320,
 #                  'IMAGE_SIZE'+MODEL_PARAMS[1]: 320,
 #                  'IMAGE_SIZE'+MODEL_PARAMS[2]: 640,}
@@ -150,6 +150,8 @@ class MainWindow(QMainWindow, WindowMixin):
         self.itemsToShapes = {}
         self.shapesToItems = {}
         self.prevLabelText = ''
+
+        self.autoDelete = 0
 
         listLayout = QVBoxLayout()
         listLayout.setContentsMargins(0, 0, 0, 0)
@@ -311,6 +313,8 @@ class MainWindow(QMainWindow, WindowMixin):
                         'w', 'new', getStr('crtBoxDetail'), enabled=False)
         delete = action(getStr('delBox'), self.deleteSelectedShape,
                         'Delete', 'delete', getStr('delBoxDetail'), enabled=False)
+        deleteSeries = action('Delete Rectbox by IoU', self.deleteSeries,
+                        'Shift+Delete', 'delete', getStr('delBoxDetail'), enabled=False)
         copy = action(getStr('dupBox'), self.copySelectedShape,
                       'Ctrl+D', 'copy', getStr('dupBoxDetail'),
                       enabled=False)
@@ -392,7 +396,7 @@ class MainWindow(QMainWindow, WindowMixin):
 
         # Store actions for further handling.
         self.actions = struct(save=save, save_format=save_format, saveAs=saveAs, open=open, close=close, resetAll = resetAll, deleteImg = deleteImg,
-                              lineColor=color1, create=create, delete=delete, edit=edit, copy=copy,
+                              lineColor=color1, create=create, delete=delete, deleteSeries=deleteSeries, edit=edit, copy=copy,
                               createMode=createMode, editMode=editMode, advancedMode=advancedMode,
                               shapeLineColor=shapeLineColor, shapeFillColor=shapeFillColor,
                               zoom=zoom, zoomIn=zoomIn, zoomOut=zoomOut, zoomOrg=zoomOrg,
@@ -403,7 +407,7 @@ class MainWindow(QMainWindow, WindowMixin):
                               beginner=(), advanced=(),
                               editMenu=(edit, copy, delete,
                                         None, color1, self.drawSquaresOption),
-                              beginnerContext=(create, edit, copy, delete),
+                              beginnerContext=(create, edit, copy, delete, deleteSeries),
                               advancedContext=(createMode, editMode, edit, copy,
                                                delete, shapeLineColor, shapeFillColor),
                               onLoadActive=(
@@ -884,6 +888,7 @@ class MainWindow(QMainWindow, WindowMixin):
             else:
                 self.labelList.clearSelection()
         self.actions.delete.setEnabled(selected)
+        self.actions.deleteSeries.setEnabled(selected)
         self.actions.copy.setEnabled(selected)
         self.actions.edit.setEnabled(selected)
         self.actions.shapeLineColor.setEnabled(selected)
@@ -1483,6 +1488,16 @@ class MainWindow(QMainWindow, WindowMixin):
         if filename:
             self.loadFile(filename)
 
+        if self.autoDelete == 1:
+            if self.canvas.shapes != []:
+                tmp_judge = []
+                for shape_other in self.canvas.shapes:
+                    tmp_judge.append(self.computeIoU(self.tmpShape, shape_other, Iou_max=MAX_IOU_FOR_DELETE))
+                if 0 not in tmp_judge:
+                    self.autoDelete = 0
+            else:
+                self.autoDelete = 0
+
         return filename
 
     def openFile(self, _value=False):
@@ -1664,6 +1679,55 @@ class MainWindow(QMainWindow, WindowMixin):
         if self.noShapes():
             for action in self.actions.onShapesPresent:
                 action.setEnabled(False)
+
+    def deleteShape(self, shape):
+        self.remLabel(shape)
+        self.setDirty()
+        self.canvas.deleteOneShape(shape)
+        if self.noShapes():
+            for action in self.actions.onShapesPresent:
+                action.setEnabled(False)
+
+    def computeIoU(self, shape_1, shape_2, Iou_max=0.9):
+        shape1 = shape_1.points
+        shape2 = shape_2.points
+
+        firs = [shape1[0].x(), shape1[0].y(), shape1[2].x(), shape1[2].y()]
+        secs = [shape2[0].x(), shape2[0].y(), shape2[2].x(), shape2[2].y()]
+        bbox_intersect = [max(secs[0], firs[0]), max(secs[1], firs[1]),
+                          min(secs[2], firs[2]), min(secs[3], firs[3])]
+        intersect_width = bbox_intersect[2] - bbox_intersect[0] + 1
+        intersect_height = bbox_intersect[3] - bbox_intersect[1] + 1
+        if intersect_height > 0 and intersect_width > 0:
+            union_area = ((firs[2] - firs[0] + 1) * (firs[3] - firs[1] + 1)) \
+                         + ((secs[2] - secs[0] + 1) * (secs[3] - secs[1] + 1)) \
+                         - (intersect_width * intersect_height)
+            Iou = intersect_height * intersect_width / union_area
+            if Iou > Iou_max:
+                self.deleteShape(shape_2)
+                return 0
+            else:
+                return 1
+        else:
+            return 1
+
+    def deleteSeries(self):
+        self.tmpShape = self.canvas.deleteSelected()
+        self.autoDelete = 1
+        self.deleteShape(self.tmpShape)
+        self.canvas.deleteOneShape(self.tmpShape)
+
+
+        while self.autoDelete == 1:
+            self.openNextImg()
+        # for shape_other in self.canvas.shapes:
+        #     self.computeIoU(self.deleteShape, shape_other, Iou_max=0.9)
+
+
+
+        # self.itemsToShapes[item]
+
+
 
     def chshapeLineColor(self):
         color = self.colorDialog.getColor(self.lineColor, u'Choose line color',
