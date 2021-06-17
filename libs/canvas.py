@@ -444,6 +444,15 @@ class Canvas(QWidget):
             self.update()
             return shape
 
+    def deleteOneShape(self, shapeToDelete):
+        try:
+            self.shapes.remove(shapeToDelete)
+            self.selectedShape = None
+            self.update()
+            return shapeToDelete
+        except:
+            print("not removed")
+
     def copySelectedShape(self):
         if self.selectedShape:
             shape = self.selectedShape.copy()
@@ -453,6 +462,11 @@ class Canvas(QWidget):
             self.selectedShape = shape
             self.boundedShiftShape(shape)
             return shape
+
+    def copyOneShape(self, shape):
+        self.shapes.append(shape)
+        self.selectedShape = shape
+        return shape
 
     def boundedShiftShape(self, shape):
         # Try to move in one direction, and if it fails in another.
