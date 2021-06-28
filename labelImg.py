@@ -69,6 +69,7 @@ MODEL_PATH = {"_SSD": "config/cleaner/ssd.onnx",
               "_YOLOv5": "config/human/yolov5.onnx",}
 MAX_IOU_FOR_DELETE = 0.9
 ADD_RECTBOX_BY_SERIES_NUM = 10
+IOU_NMS = 0.5
 # IMG_SIZE_DICT = {'IMAGE_SIZE'+MODEL_PARAMS[0]: 320,
 #                  'IMAGE_SIZE'+MODEL_PARAMS[1]: 320,
 #                  'IMAGE_SIZE'+MODEL_PARAMS[2]: 640,}
@@ -1011,9 +1012,38 @@ class MainWindow(QMainWindow, WindowMixin):
         self.autoAdd = 0
 
     def addOneShape(self):
-        self.addLabel(self.canvas.copyOneShape(self.tmpShape))
-        self.setDirty()
-        # self.shapeSelectionChanged(True)
+        if self.shapeNMS(self.canvas.shapes, self.tmpShape):
+            self.addLabel(self.canvas.copyOneShape(self.tmpShape))
+            self.setDirty()
+
+    def shapeNMS(self, shape_list, shapeToBeSupressed):
+        '''
+
+        return: true for keep, and false for drop
+        '''
+        keep = True
+        xs1, ys1, xs2, ys2 = shapeToBeSupressed.points[0].x(), shapeToBeSupressed.points[0].y(), \
+                         shapeToBeSupressed.points[2].x(), shapeToBeSupressed.points[2].y()
+        areaS = max(0, (xs2 - xs1) * (ys2 - ys1))
+        for i in shape_list:
+            xo1, yo1, xo2, yo2 = i.points[0].x(), i.points[0].y(), i.points[2].x(), i.points[2].y()
+
+            xx1 = max(xs1, xo1)
+            yy1 = max(ys1, yo1)
+            xx2 = min(xs2, xo2)
+            yy2 = min(ys2, yo2)
+            w = max(0, xx2 - xx1)
+            h = max(0, yy2 - yy1)
+            intersection = w * h
+
+            areaO = max(0, (xo2 - xo1) * (yo2 - yo1))
+            if (areaO + areaS - intersection) > 0 :
+                iou = intersection / (areaO + areaS - intersection)
+
+            if iou > IOU_NMS:
+                keep = False
+
+        return keep
 
     def comboSelectionChanged(self, index):
         text = self.comboBox.cb.itemText(index)

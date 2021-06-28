@@ -43,7 +43,7 @@ def partition_arg_topK(matrix, K, axis=0):
 
 def TopK(matrix, K, axis=1):
     """
-    created at 2021.4.7 by jiao@1054568970@qq.com
+    created at 2021.4.7 by jiao1943@qq.com
     @description:
         In the last version of this function, when axis != 0, there would be a 'dimentional explotion' problem
         Now this bug is fixed and the last version is reserved below as *TopK_old*
