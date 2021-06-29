@@ -612,6 +612,10 @@ class MainWindow(QMainWindow, WindowMixin):
         return self
 
     def keyReleaseEvent(self, event):
+        if event.key() == Qt.Key_Tab:
+            self.canvas.keyPressEvent(event)
+            return
+
         if event.key() == Qt.Key_Control:
             self.canvas.setDrawingShapeToSquare(False)
 

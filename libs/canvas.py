@@ -438,10 +438,19 @@ class Canvas(QWidget):
 
     def deleteSelected(self):
         if self.selectedShape:
+            shape_size = len(self.shapes)
+            id = self.shapes.index(self.selectedShape)
+
             shape = self.selectedShape
             self.shapes.remove(self.selectedShape)
             self.selectedShape = None
+
             self.update()
+
+            if shape_size > 1:
+                next_id = id % (shape_size - 1)
+                self.selectShape(self.shapes[next_id])
+
             return shape
 
     def deleteOneShape(self, shapeToDelete):
@@ -602,7 +611,21 @@ class Canvas(QWidget):
             h_delta and self.scrollRequest.emit(h_delta, Qt.Horizontal)
         ev.accept()
 
+    def nextShape(self):
+        shape_size = len(self.shapes)
+        if shape_size == 0:
+            return
+        if self.selectedShape:
+            id = self.shapes.index(self.selectedShape)
+        else:
+            id = -1
+        next_id = (id + 1) % shape_size
+        self.selectShape(self.shapes[next_id])
+
     def keyPressEvent(self, ev):
+        if ev.key() == Qt.Key_Tab:
+            self.nextShape()
+
         key = ev.key()
         if key == Qt.Key_Escape and self.current:
             print('ESC press')
