@@ -317,7 +317,7 @@ class MainWindow(QMainWindow, WindowMixin):
         delete = action(getStr('delBox'), self.deleteSelectedShape,
                         'Delete', 'delete', getStr('delBoxDetail'), enabled=False)
         deleteSeries = action('Delete Rectbox by IoU', self.deleteSeries,
-                        'Shift+Delete', 'delete', 'This func is configued through variable MAX_IOU_FOR_DELETE', enabled=False)
+                        'Ctrl+Delete', 'deleteSeries', 'This func is configued through variable MAX_IOU_FOR_DELETE', enabled=False)
         addSeries = action('Add Rectboxs by Series', self.addSelectedShape,
                         'Shift+D', 'copy', 'This func is configued through variable ADD_RECTBOX_BY_SERIES_NUM', enabled=False)
         copy = action(getStr('dupBox'), self.copySelectedShape,
@@ -412,7 +412,7 @@ class MainWindow(QMainWindow, WindowMixin):
                               beginner=(), advanced=(),
                               editMenu=(edit, copy, delete,
                                         None, color1, self.drawSquaresOption),
-                              beginnerContext=(create, edit, copy, delete, addSeries, deleteSeries),
+                              beginnerContext=(deleteSeries, addSeries, create, edit, copy, delete),
                               advancedContext=(createMode, editMode, edit, copy,
                                                delete, shapeLineColor, shapeFillColor),
                               onLoadActive=(
