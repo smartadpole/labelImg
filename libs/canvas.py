@@ -38,6 +38,7 @@ class Canvas(QWidget):
         # Initialise local state.
         self.mode = self.EDIT
         self.shapes = []
+        self.sortShapes4Show()
         self.current = None
         self.selectedShape = None  # save the selected shape here
         self.selectedShapeCopy = None
@@ -104,6 +105,11 @@ class Canvas(QWidget):
 
     def selectedVertex(self):
         return self.hVertex is not None
+
+    def sortShapes4Show(self):
+        # reversed([s for s in self.shapes if self.isVisible(s)])
+        self.shapesSorted = self.shapes.copy()
+        self.shapesSorted.sort(key=lambda x: x.area())
 
     def mouseMoveEvent(self, ev):
         """Update line with last point and current coordinates."""
@@ -197,7 +203,7 @@ class Canvas(QWidget):
         # - Highlight vertex
         # Update shape/vertex fill and tooltip value accordingly.
         self.setToolTip("Image")
-        for shape in reversed([s for s in self.shapes if self.isVisible(s)]):
+        for shape in [s for s in self.shapesSorted if self.isVisible(s)]:
             # Look for a nearby vertex to highlight. If that fails,
             # check if we happen to be inside a shape.
             index = shape.nearestVertex(pos, self.epsilon)
@@ -270,13 +276,17 @@ class Canvas(QWidget):
                 #pan
                 QApplication.restoreOverrideCursor()
 
+    def appendShape(self, shape):
+        self.shapes.append(shape)
+        self.sortShapes4Show()
+
     def endMove(self, copy=False):
         assert self.selectedShape and self.selectedShapeCopy
         shape = self.selectedShapeCopy
         #del shape.fill_color
         #del shape.line_color
         if copy:
-            self.shapes.append(shape)
+            self.appendShape(shape)
             self.selectedShape.selected = False
             self.selectedShape = shape
             self.repaint()
@@ -333,6 +343,14 @@ class Canvas(QWidget):
         self.selectionChanged.emit(True)
         self.update()
 
+    def getContainPointShape(self, point):
+        temp_shape = None
+        for shape in self.shapesSorted:
+            if self.isVisible(shape) and shape.containsPoint(point):
+                return shape
+
+        return temp_shape
+
     def selectShapePoint(self, point):
         """Select the first shape created which contains this point."""
         self.deSelectShape()
@@ -341,11 +359,13 @@ class Canvas(QWidget):
             shape.highlightVertex(index, shape.MOVE_VERTEX)
             self.selectShape(shape)
             return self.hVertex
-        for shape in reversed(self.shapes):
-            if self.isVisible(shape) and shape.containsPoint(point):
-                self.selectShape(shape)
-                self.calculateOffsets(shape, point)
-                return self.selectedShape
+
+        temp_shape = self.getContainPointShape(point)
+
+        if temp_shape is not None:
+            self.selectShape(temp_shape)
+            self.calculateOffsets(temp_shape, point)
+            return self.selectedShape
         return None
 
     def calculateOffsets(self, shape, point):
@@ -442,7 +462,7 @@ class Canvas(QWidget):
             id = self.shapes.index(self.selectedShape)
 
             shape = self.selectedShape
-            self.shapes.remove(self.selectedShape)
+            self.shapes.remove(self.aselectedShape)
             self.selectedShape = None
 
             self.update()
@@ -466,14 +486,14 @@ class Canvas(QWidget):
         if self.selectedShape:
             shape = self.selectedShape.copy()
             self.deSelectShape()
-            self.shapes.append(shape)
+            self.appendShape(shape)
             shape.selected = True
             self.selectedShape = shape
             self.boundedShiftShape(shape)
             return shape
 
     def copyOneShape(self, shape):
-        self.shapes.append(shape)
+        self.appendShape(shape)
         self.selectedShape = shape
         return shape
 
@@ -567,7 +587,7 @@ class Canvas(QWidget):
             return
 
         self.current.close()
-        self.shapes.append(self.current)
+        self.appendShape(self.current)
         self.current = None
         self.setHiding(False)
         self.newShape.emit()
@@ -707,10 +727,12 @@ class Canvas(QWidget):
     def loadPixmap(self, pixmap):
         self.pixmap = pixmap
         self.shapes = []
+        self.sortShapes4Show()
         self.repaint()
 
     def loadShapes(self, shapes):
         self.shapes = list(shapes)
+        self.sortShapes4Show()
         self.current = None
         self.repaint()
 

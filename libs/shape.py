@@ -204,3 +204,18 @@ class Shape(object):
 
     def __setitem__(self, key, value):
         self.points[key] = value
+
+    def area(self):
+        min_x = sys.maxsize
+        min_y = sys.maxsize
+        max_x = 0
+        max_y = 0
+        for point in self.points:
+            min_x = min(min_x, point.x())
+            min_y = min(min_y, point.y())
+            max_x = max(max_x, point.x())
+            max_y = max(max_y, point.y())
+        if min_x != sys.maxsize and min_y != sys.maxsize and max_x  > 0 and max_y > 0:
+            return (max_x - min_x) * (max_y - min_y)
+        return 0
+
