@@ -28,6 +28,7 @@ class Canvas(QWidget):
     selectionChanged = pyqtSignal(bool)
     shapeMoved = pyqtSignal()
     drawingPolygon = pyqtSignal(bool)
+    deleteSerials = pyqtSignal()
 
     CREATE, EDIT = list(range(2))
 
@@ -280,6 +281,10 @@ class Canvas(QWidget):
         self.shapes.append(shape)
         self.sortShapes4Show()
 
+    def remvoeShape(self, shape):
+        self.shapes.remove(shape)
+        self.sortShapes4Show()
+
     def endMove(self, copy=False):
         assert self.selectedShape and self.selectedShapeCopy
         shape = self.selectedShapeCopy
@@ -331,9 +336,11 @@ class Canvas(QWidget):
     def mouseDoubleClickEvent(self, ev):
         # We need at least 4 points here, since the mousePress handler
         # adds an extra one before this handler is called.
-        if self.canCloseShape() and len(self.current) > 3:
-            self.current.popPoint()
-            self.finalise()
+        print("double click")
+        # if self.canCloseShape() and len(self.current) > 3:
+        #     self.current.popPoint()
+        #     self.finalise()
+        self.deleteSerials.emit()
 
     def selectShape(self, shape):
         self.deSelectShape()
@@ -462,7 +469,7 @@ class Canvas(QWidget):
             id = self.shapes.index(self.selectedShape)
 
             shape = self.selectedShape
-            self.shapes.remove(self.aselectedShape)
+            self.remvoeShape(self.selectedShape)
             self.selectedShape = None
 
             self.update()
@@ -475,7 +482,7 @@ class Canvas(QWidget):
 
     def deleteOneShape(self, shapeToDelete):
         try:
-            self.shapes.remove(shapeToDelete)
+            self.remvoeShape(shapeToDelete)
             self.selectedShape = None
             self.update()
             return shapeToDelete

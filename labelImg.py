@@ -67,7 +67,7 @@ MODEL_PARAMS = {0: "_SSD", 1: "_CENTER_NET", 2: "_YOLOv5"}  # TODO models later 
 MODEL_PATH = {"_SSD": "config/cleaner/ssd.onnx",
               "_CENTER_NET": "config/human/centernet.onnx",
               "_YOLOv5": "config/human/yolov5.onnx",}
-MAX_IOU_FOR_DELETE = 0.9
+MAX_IOU_FOR_DELETE = 0.6
 ADD_RECTBOX_BY_SERIES_NUM = 10
 IOU_NMS = 0.5
 # IMG_SIZE_DICT = {'IMAGE_SIZE'+MODEL_PARAMS[0]: 320,
@@ -234,6 +234,7 @@ class MainWindow(QMainWindow, WindowMixin):
         self.canvas.shapeMoved.connect(self.setDirty)
         self.canvas.selectionChanged.connect(self.shapeSelectionChanged)
         self.canvas.drawingPolygon.connect(self.toggleDrawingSensitive)
+        self.canvas.deleteSerials.connect(self.deleteSeries)
 
         self.setCentralWidget(scroll)
         self.addDockWidget(Qt.RightDockWidgetArea, self.dock)
