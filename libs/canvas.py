@@ -479,6 +479,7 @@ class Canvas(QWidget):
                 self.selectShape(self.shapes[next_id])
 
             return shape
+        return None
 
     def deleteOneShape(self, shapeToDelete):
         try:

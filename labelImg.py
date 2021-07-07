@@ -1768,6 +1768,8 @@ class MainWindow(QMainWindow, WindowMixin):
 
     def deleteSeries(self):
         self.tmpShape = self.canvas.deleteSelected()
+        if self.tmpShape is None:
+            return
         self.autoDelete = 1
         self.deleteShape(self.tmpShape)
         self.canvas.deleteOneShape(self.tmpShape)
