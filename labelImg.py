@@ -373,7 +373,15 @@ class MainWindow(QMainWindow, WindowMixin):
         edit = action(getStr('editLabel'), self.editLabel,
                       'Ctrl+E', 'edit', getStr('editLabelDetail'),
                       enabled=False)
+        edit1 = action(getStr('editLabel'), self.editLabel1,
+                      '1', 'edit', getStr('editLabelDetail'),
+                      enabled=False)
+        edit2 = action(getStr('editLabel'), self.editLabel2,
+                       '2', 'edit', getStr('editLabelDetail'),
+                       enabled=False)
         self.editButton.setDefaultAction(edit)
+        self.editButton.setDefaultAction(edit1)
+        self.editButton.setDefaultAction(edit2)
 
         shapeLineColor = action(getStr('shapeLineColor'), self.chshapeLineColor,
                                 icon='color_line', tip=getStr('shapeLineColorDetail'),
@@ -389,6 +397,8 @@ class MainWindow(QMainWindow, WindowMixin):
         # Label list context menu.
         labelMenu = QMenu()
         addActions(labelMenu, (edit, delete))
+        # addActions(labelMenu, (edit1, delete))
+        # addActions(labelMenu, (edit2, delete))
         self.labelList.setContextMenuPolicy(Qt.CustomContextMenu)
         self.labelList.customContextMenuRequested.connect(
             self.popLabelListMenu)
@@ -402,7 +412,7 @@ class MainWindow(QMainWindow, WindowMixin):
 
         # Store actions for further handling.
         self.actions = struct(save=save, save_format=save_format, saveAs=saveAs, open=open, close=close, resetAll = resetAll, deleteImg = deleteImg,
-                              lineColor=color1, create=create, delete=delete, deleteSeries=deleteSeries, addSeries=addSeries, edit=edit, copy=copy,
+                              lineColor=color1, create=create, delete=delete, deleteSeries=deleteSeries, addSeries=addSeries, edit=edit,edit1=edit1,edit2=edit2, copy=copy,
                               createMode=createMode, editMode=editMode, advancedMode=advancedMode,
                               shapeLineColor=shapeLineColor, shapeFillColor=shapeFillColor,
                               zoom=zoom, zoomIn=zoomIn, zoomOut=zoomOut, zoomOrg=zoomOrg,
@@ -411,10 +421,10 @@ class MainWindow(QMainWindow, WindowMixin):
                               fileMenuActions=(
                                   open, opendir, save, saveAs, close, resetAll, quit),
                               beginner=(), advanced=(),
-                              editMenu=(edit, copy, delete,
+                              editMenu=(edit,edit1,edit2,copy, delete,
                                         None, color1, self.drawSquaresOption),
-                              beginnerContext=(deleteSeries, addSeries, create, edit, copy, delete),
-                              advancedContext=(createMode, editMode, edit, copy,
+                              beginnerContext=(deleteSeries, addSeries, create, edit,edit1,edit2, copy, delete),
+                              advancedContext=(createMode, editMode, edit,edit1,edit2, copy,
                                                delete, shapeLineColor, shapeFillColor),
                               onLoadActive=(
                                   close, create, createMode, editMode),
@@ -851,6 +861,34 @@ class MainWindow(QMainWindow, WindowMixin):
             item.setBackground(generateColorByText(text))
             self.setDirty()
             self.updateComboBox()
+    def editLabel1(self):
+        if not self.canvas.editing():
+            return
+        item = self.currentItem()
+        if not item:
+            return
+        if len(self.labelHist) >= 1:
+            text = self.labelHist[0]
+            # text = 'person_model'
+        if text is not None:
+            item.setText(text)
+            item.setBackground(generateColorByText(text))
+            self.setDirty()
+            self.updateComboBox()
+    def editLabel2(self):
+        if not self.canvas.editing():
+            return
+        item = self.currentItem()
+        if not item:
+            return
+        if len(self.labelHist) >= 1:
+            text = self.labelHist[1]
+            # text = 'person_dummy'
+        if text is not None:
+            item.setText(text)
+            item.setBackground(generateColorByText(text))
+            self.setDirty()
+            self.updateComboBox()
 
     # Tzutalin 20160906 : Add file list and dock to move faster
     def fileitemDoubleClicked(self, item=None):
@@ -902,6 +940,8 @@ class MainWindow(QMainWindow, WindowMixin):
         self.actions.addSeries.setEnabled(selected)
         self.actions.copy.setEnabled(selected)
         self.actions.edit.setEnabled(selected)
+        self.actions.edit1.setEnabled(selected)
+        self.actions.edit2.setEnabled(selected)
         self.actions.shapeLineColor.setEnabled(selected)
         self.actions.shapeFillColor.setEnabled(selected)
 
@@ -1767,12 +1807,14 @@ class MainWindow(QMainWindow, WindowMixin):
             return 1
 
     def deleteSeries(self):
+
         self.tmpShape = self.canvas.deleteSelected()
-        if self.tmpShape is None:
+        if self.tmpShape==None:
             return
         self.autoDelete = 1
         self.deleteShape(self.tmpShape)
         self.canvas.deleteOneShape(self.tmpShape)
+
 
         while self.autoDelete == 1:
             self.openNextImg()

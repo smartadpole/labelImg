@@ -1,3 +1,5 @@
+person_model
+person_dummy
 dog
 person
 cat
