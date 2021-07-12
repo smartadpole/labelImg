@@ -397,8 +397,6 @@ class MainWindow(QMainWindow, WindowMixin):
         # Label list context menu.
         labelMenu = QMenu()
         addActions(labelMenu, (edit, delete))
-        # addActions(labelMenu, (edit1, delete))
-        # addActions(labelMenu, (edit2, delete))
         self.labelList.setContextMenuPolicy(Qt.CustomContextMenu)
         self.labelList.customContextMenuRequested.connect(
             self.popLabelListMenu)
@@ -423,7 +421,7 @@ class MainWindow(QMainWindow, WindowMixin):
                               beginner=(), advanced=(),
                               editMenu=(edit,edit1,edit2,copy, delete,
                                         None, color1, self.drawSquaresOption),
-                              beginnerContext=(deleteSeries, addSeries, create, edit,edit1,edit2, copy, delete),
+                              beginnerContext=(deleteSeries, addSeries, create, edit,copy, delete),
                               advancedContext=(createMode, editMode, edit,edit1,edit2, copy,
                                                delete, shapeLineColor, shapeFillColor),
                               onLoadActive=(
