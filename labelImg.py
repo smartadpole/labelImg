@@ -409,7 +409,6 @@ class MainWindow(QMainWindow, WindowMixin):
         self.drawSquaresOption.triggered.connect(self.toogleDrawSquare)
 
         # Store actions for further handling.
-        #1
         self.actions = struct(save=save, save_format=save_format, saveAs=saveAs, open=open, close=close, resetAll = resetAll, deleteImg = deleteImg,
                               lineColor=color1, create=create, delete=delete, deleteSeries=deleteSeries, addSeries=addSeries, edit=edit,edit1=edit1,edit2=edit2, copy=copy,
                               createMode=createMode, editMode=editMode, advancedMode=advancedMode,
