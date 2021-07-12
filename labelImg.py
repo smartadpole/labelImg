@@ -419,10 +419,10 @@ class MainWindow(QMainWindow, WindowMixin):
                               fileMenuActions=(
                                   open, opendir, save, saveAs, close, resetAll, quit),
                               beginner=(), advanced=(),
-                              editMenu=(edit,edit1,edit2,copy, delete,
+                              editMenu=(edit,copy, delete,
                                         None, color1, self.drawSquaresOption),
                               beginnerContext=(deleteSeries, addSeries, create, edit,copy, delete),
-                              advancedContext=(createMode, editMode, edit,edit1,edit2, copy,
+                              advancedContext=(createMode, editMode, edit, copy,
                                                delete, shapeLineColor, shapeFillColor),
                               onLoadActive=(
                                   close, create, createMode, editMode),
