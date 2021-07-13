@@ -8,8 +8,6 @@ import platform
 import re
 import sys
 import subprocess
-import numpy
-a=1
 
 from functools import partial
 from collections import defaultdict
