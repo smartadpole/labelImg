@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-#kongge
 import argparse
 import codecs
 import distutils.spawn
@@ -9,6 +8,8 @@ import platform
 import re
 import sys
 import subprocess
+import numpy
+a=1
 
 from functools import partial
 from collections import defaultdict
