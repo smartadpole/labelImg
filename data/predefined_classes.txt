@@ -1,5 +1,8 @@
-dog
+person_model
+person_dummy
 person
+escalator
+dog
 cat
 tv
 car
