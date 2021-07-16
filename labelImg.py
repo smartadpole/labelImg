@@ -111,6 +111,7 @@ class MainWindow(QMainWindow, WindowMixin):
         self.setWindowTitle(__appname__)
 
         self.fullyAutoMode = False
+        self.combobox_label=""
 
         self.class_name_file_4_detect = os.path.join(CURRENT_DIR, "config/class_names.txt")
         self.model_file_4_detect = os.path.join(CURRENT_DIR, MODEL_PATH[MODEL_PARAMS[onnxModelIndex]])
@@ -732,7 +733,7 @@ class MainWindow(QMainWindow, WindowMixin):
         self.labelFile = None
         self.canvas.resetState()
         self.labelCoordinates.clear()
-        self.comboBox.cb.clear()
+        # self.comboBox.cb.clear()
 
     def currentItem(self):
         items = self.labelList.selectedItems()
@@ -867,7 +868,6 @@ class MainWindow(QMainWindow, WindowMixin):
             return
         if len(self.labelHist) >= 1:
             text = self.labelHist[0]
-            # text = 'person_model'
         if text is not None:
             item.setText(text)
             item.setBackground(generateColorByText(text))
@@ -881,7 +881,6 @@ class MainWindow(QMainWindow, WindowMixin):
             return
         if len(self.labelHist) >= 1:
             text = self.labelHist[1]
-            # text = 'person_dummy'
         if text is not None:
             item.setText(text)
             item.setBackground(generateColorByText(text))
@@ -1001,14 +1000,20 @@ class MainWindow(QMainWindow, WindowMixin):
 
     def updateComboBox(self):
         # Get the unique labels and add them to the Combobox.
+        combobox_add=[]
         itemsTextList = [str(self.labelList.item(i).text()) for i in range(self.labelList.count())]
+        combobox_list=[str(self.comboBox.cb.itemText(i)) for i in range(self.comboBox.cb.count())]
 
         uniqueTextList = list(set(itemsTextList))
         # Add a null row for showing all the labels
         uniqueTextList.append("")
         uniqueTextList.sort()
 
-        self.comboBox.update_items(uniqueTextList)
+        for i in uniqueTextList:
+            if not (i in combobox_list):
+                combobox_add.append(i)
+
+        self.comboBox.update_items(combobox_add)
 
     def saveLabels(self, annotationFilePath, shapes:map):
         annotationFilePath = ustr(annotationFilePath)
@@ -1089,11 +1094,11 @@ class MainWindow(QMainWindow, WindowMixin):
         return keep
 
     def comboSelectionChanged(self, index):
-        text = self.comboBox.cb.itemText(index)
+        self.combobox_label = self.comboBox.cb.itemText(index)
         for i in range(self.labelList.count()):
-            if text == "":
+            if self.combobox_label == "":
                 self.labelList.item(i).setCheckState(2)
-            elif text != self.labelList.item(i).text():
+            elif self.combobox_label != self.labelList.item(i).text():
                 self.labelList.item(i).setCheckState(0)
             else:
                 self.labelList.item(i).setCheckState(2)
