@@ -111,7 +111,6 @@ class MainWindow(QMainWindow, WindowMixin):
         self.setWindowTitle(__appname__)
 
         self.fullyAutoMode = False
-        self.combobox_label=""
 
         self.class_name_file_4_detect = os.path.join(CURRENT_DIR, "config/class_names.txt")
         self.model_file_4_detect = os.path.join(CURRENT_DIR, MODEL_PATH[MODEL_PARAMS[onnxModelIndex]])
@@ -1094,11 +1093,11 @@ class MainWindow(QMainWindow, WindowMixin):
         return keep
 
     def comboSelectionChanged(self, index):
-        self.combobox_label = self.comboBox.cb.itemText(index)
+        text = self.comboBox.cb.itemText(index)
         for i in range(self.labelList.count()):
-            if self.combobox_label == "":
+            if text == "":
                 self.labelList.item(i).setCheckState(2)
-            elif self.combobox_label != self.labelList.item(i).text():
+            elif text != self.labelList.item(i).text():
                 self.labelList.item(i).setCheckState(0)
             else:
                 self.labelList.item(i).setCheckState(2)

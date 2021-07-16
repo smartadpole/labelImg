@@ -28,7 +28,7 @@ class ComboBox(QWidget):
         self.setLayout(layout)
 
     def update_items(self, items):
-        self.items = items
+        self.items = ["","person_model"]
 
         # self.cb.clear()
         self.cb.addItems(self.items)
