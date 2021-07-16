@@ -1,7 +1,7 @@
 person_model
 person_dummy
-escalator_handrails
 escalator
+escalator_handrailsr
 person
 dog
 cat
