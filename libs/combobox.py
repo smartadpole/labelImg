@@ -34,4 +34,3 @@ class ComboBox(QWidget):
         self.cb.addItems(self.items)
         if self.cb.currentIndex()>=0:
             self.parent.comboSelectionChanged(index=self.cb.currentIndex())
-
