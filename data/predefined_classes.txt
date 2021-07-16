@@ -1,5 +1,6 @@
 person_model
 person_dummy
+escalator_handrails
 person
 escalator
 dog

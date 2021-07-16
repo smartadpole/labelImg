@@ -20,8 +20,9 @@ class ComboBox(QWidget):
         self.cb = QComboBox()
         self.items = items
         self.cb.addItems(self.items)
+        self.parent=parent
 
-        self.cb.currentIndexChanged.connect(parent.comboSelectionChanged)
+        self.cb.currentIndexChanged.connect(self.parent.comboSelectionChanged)
 
         layout.addWidget(self.cb)
         self.setLayout(layout)
@@ -29,5 +30,7 @@ class ComboBox(QWidget):
     def update_items(self, items):
         self.items = items
 
-        self.cb.clear()
+        # self.cb.clear()
         self.cb.addItems(self.items)
+        if self.cb.currentIndex()>=0:
+            self.parent.comboSelectionChanged(index=self.cb.currentIndex())
