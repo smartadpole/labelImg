@@ -1,0 +1,26 @@
+<annotation>
+	<folder>images</folder>
+	<filename>1624478674243691_L.png</filename>
+	<path>/home/fandong/Code/Data/data4/902_20210705_i18R/images/1624478674243691_L.png</path>
+	<source>
+		<database>Unknown</database>
+	</source>
+	<size>
+		<width>640</width>
+		<height>400</height>
+		<depth>1</depth>
+	</size>
+	<segmented>0</segmented>
+	<object>
+		<name>person</name>
+		<pose>Unspecified</pose>
+		<truncated>0</truncated>
+		<difficult>0</difficult>
+		<bndbox>
+			<xmin>272</xmin>
+			<ymin>128</ymin>
+			<xmax>374</xmax>
+			<ymax>338</ymax>
+		</bndbox>
+	</object>
+</annotation>

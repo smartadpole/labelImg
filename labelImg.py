@@ -50,7 +50,11 @@ from libs.create_ml_io import CreateMLReader
 from libs.create_ml_io import JSON_EXT
 from libs.ustr import ustr
 from libs.hashableQListWidgetItem import HashableQListWidgetItem
-from libs.detector.ssd.onnxmodel import ONNXModel
+try:
+    from libs.detector.ssd.onnxmodel import ONNXModel
+    is_onnxok=True
+except:
+    is_onnxok=False
 from libs.detector.ssd.postprocess.ssd import PostProcessor_SSD
 import numpy as np
 import cv2
@@ -1621,14 +1625,20 @@ class MainWindow(QMainWindow, WindowMixin):
 
     def autoLabel(self):
         if not self.fullyAutoMode:
-            # if not in the fullyAutoMode
-            self.auto()
+            if is_onnxok:
+                # if not in the fullyAutoMode
+                self.auto()
+            else:
+                return
         else:
-            # in the fullyAutoMode
-            self.i = 0
-            self.timer = QTimer(self)
-            self.timer.start(20)
-            self.timer.timeout.connect(self.autoThreadFunc)
+            if is_onnxok:
+                # in the fullyAutoMode
+                self.i = 0
+                self.timer = QTimer(self)
+                self.timer.start(20)
+                self.timer.timeout.connect(self.autoThreadFunc)
+            else:
+                return
 
     def autoThreadFunc(self):
         if self.fullyAutoMode:

@@ -1,8 +1,10 @@
+person
 person_model
 person_dummy
 escalator
+escalator_model
 escalator_handrailsr
-person
+escalator_handrails_model
 dog
 cat
 tv
