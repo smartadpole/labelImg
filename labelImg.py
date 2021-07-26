@@ -68,7 +68,7 @@ MODEL_PATH = {"_SSD": "config/cleaner/ssd.onnx",
               "_CENTER_NET": "config/human/centernet.onnx",
               "_YOLOv5": "config/human/yolov5.onnx",}
 MAX_IOU_FOR_DELETE = 0.6
-ADD_RECTBOX_BY_SERIES_NUM = 10
+ADD_RECTBOX_BY_SERIES_NUM = 1000
 IOU_NMS = 0.5
 # IMG_SIZE_DICT = {'IMAGE_SIZE'+MODEL_PARAMS[0]: 320,
 #                  'IMAGE_SIZE'+MODEL_PARAMS[1]: 320,
@@ -81,7 +81,8 @@ def format_shape_qt(s):
                 line_color=s.line_color.getRgb(),
                 fill_color=s.fill_color.getRgb(),
                 points=[(p.x(), p.y()) for p in s.points],
-                difficult = s.difficult)
+                difficult = s.difficult,
+                distance = s.distance)
 
 
 class WindowMixin(object):
@@ -177,9 +178,23 @@ class MainWindow(QMainWindow, WindowMixin):
         self.editButton = QToolButton()
         self.editButton.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
 
+        # Create distance label
+        distanceLayout = QHBoxLayout()
+        self.labelDistance = QLabel("distance: ")
+        self.labelDistanceUnit = QLabel("(cm)")
+        self.textDistance = QLineEdit()
+        self.textDistance.textChanged[str].connect(self.distanceChange)
+        distanceLayout.addWidget(self.labelDistance)
+        distanceLayout.addWidget(self.textDistance)
+        distanceLayout.addWidget(self.labelDistanceUnit)
+        distanceLayout.addStretch(2)
+        distanceContainer = QWidget()
+        distanceContainer.setLayout(distanceLayout)
+
         # Add some of widgets to listLayout
         listLayout.addWidget(self.editButton)
         listLayout.addWidget(self.diffcButton)
+        listLayout.addWidget(distanceContainer)
         listLayout.addWidget(useDefaultLabelContainer)
 
         # Create and add combobox for showing unique labels in group
@@ -895,6 +910,32 @@ class MainWindow(QMainWindow, WindowMixin):
             if filename:
                 self.loadFile(filename)
 
+    def distanceChange(self):
+        distance = self.textDistance.text()
+        if not distance.isnumeric():
+            return
+
+        if not self.canvas.editing():
+            return
+
+        item = self.currentItem()
+        if not item: # If not selected Item, take the first one
+            item = self.labelList.item(self.labelList.count()-1)
+
+        try:
+            shape = self.itemsToShapes[item]
+        except:
+            pass
+        # Checked and Update
+        try:
+            if distance != shape.distance:
+                shape.distance = distance
+                self.setDirty()
+            else:  # User probably changed item visibility
+                self.canvas.setShapeVisible(shape, item.checkState() == Qt.Checked)
+        except:
+            pass
+
     # Add chris
     def btnstate(self, item= None):
         """ Function to handle difficult examples
@@ -967,7 +1008,7 @@ class MainWindow(QMainWindow, WindowMixin):
 
     def loadLabels(self, shapes):
         s = []
-        for label, points, line_color, fill_color, difficult in shapes:
+        for label, points, line_color, fill_color, difficult, distance in shapes:
             shape = Shape(label=label)
             for x, y in points:
 
@@ -978,6 +1019,7 @@ class MainWindow(QMainWindow, WindowMixin):
 
                 shape.addPoint(QPointF(x, y))
             shape.difficult = difficult
+            shape.distance = distance
             shape.close()
             s.append(shape)
 
@@ -1055,7 +1097,9 @@ class MainWindow(QMainWindow, WindowMixin):
     def addSelectedShape(self):
         self.tmpShape = self.canvas.selectedShape.copy()
         self.autoAdd = 1
-        for i in range(ADD_RECTBOX_BY_SERIES_NUM):
+        currIndex = self.mImgList.index(self.filePath)
+        rest = len(self.mImgList) - currIndex - 1
+        for i in range(min(ADD_RECTBOX_BY_SERIES_NUM, rest)):
             self.openNextImg()
         self.autoAdd = 0
 
@@ -1111,6 +1155,7 @@ class MainWindow(QMainWindow, WindowMixin):
             shape = self.itemsToShapes[item]
             # Add Chris
             self.diffcButton.setChecked(shape.difficult)
+            self.textDistance.setText(str(shape.distance))
 
     def labelItemChanged(self, item):
         shape = self.itemsToShapes[item]
@@ -1145,6 +1190,7 @@ class MainWindow(QMainWindow, WindowMixin):
 
         # Add Chris
         self.diffcButton.setChecked(False)
+        self.textDistance.setText("")
         if text is not None:
             self.prevLabelText = text
             generate_color = generateColorByText(text)
@@ -1558,6 +1604,7 @@ class MainWindow(QMainWindow, WindowMixin):
 
     def openNextImg(self, _value=False):
         # Proceding prev image without dialog if having any label
+        self.textDistance.setText("")
         if self.autoSaving.isChecked():
             if self.defaultSaveDir is not None:
                 if self.dirty is True:
