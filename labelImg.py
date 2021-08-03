@@ -1742,7 +1742,7 @@ class MainWindow(QMainWindow, WindowMixin):
 
     def autoLabel_YOLOv3(self):
         return self.YOLOv3.forward(self._loadImage4Detect())
-        # return self.YOLOv5.forward(cv2.imread(self.filePath))
+        # return self.YOLOv3.forward(cv2.imread(self.filePath))
 
     def saveFile(self, _value=False):
         if self.defaultSaveDir is not None and len(ustr(self.defaultSaveDir)):
