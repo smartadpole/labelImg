@@ -1,9 +1,9 @@
 person
-person_model
-person_dummy
 escalator
+escalator_handrails
+person_dummy
+person_model
 escalator_model
-escalator_handrailsr
 escalator_handrails_model
 dog
 cat
