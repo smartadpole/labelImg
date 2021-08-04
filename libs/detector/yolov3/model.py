@@ -40,14 +40,14 @@ class YOLOv3(object):
                 result = [r for r in result if r[4] > THRESHOLD_YOLOV3]
                 for r in result:
                     x, y, x2, y2, score, score1, label = r
-                    # if label != 0:  # detect humans only
-                    #     continue
+                    if label == 4:  # detect humans only
+                        continue
 
                     y = y * oriY
                     y2 = y2 * oriY
                     x = x * oriX
                     x2 = x2 * oriX
                     x, y, x2, y2, score, label = int(x), int(y), int(x2), int(y2), float(score), int(label)
-                    shapes.append((class_names[label], [(x, y), (x2, y), (x2, y2), (x, y2)], None, None, False))
+                    shapes.append((class_names[label], [(x, y), (x2, y), (x2, y2), (x, y2)], None, None, False, 0))
 
         return shapes

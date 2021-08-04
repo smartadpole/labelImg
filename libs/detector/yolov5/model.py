@@ -45,6 +45,6 @@ class YOLOv5(object):
                     x = x / IMAGE_SIZE_YOLOV5 * oriX
                     x2 = x2 / IMAGE_SIZE_YOLOV5 * oriX
                     x, y, x2, y2, score, label = int(x), int(y), int(x2), int(y2), float(score), int(label)
-                    shapes.append(("person", [(x, y), (x2, y), (x2, y2), (x, y2)], None, None, False))
+                    shapes.append(("person", [(x, y), (x2, y), (x2, y2), (x, y2)], None, None, False, 0))
 
         return shapes
