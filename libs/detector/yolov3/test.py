@@ -9,6 +9,10 @@
 '''
 import sys, os
 
+import onnxruntime
+
+from libs.detector.utils.file import Walk, Timer
+
 CURRENT_DIR = os.path.dirname(__file__)
 sys.path.append(os.path.join(CURRENT_DIR, '../../../'))
 
@@ -59,12 +63,12 @@ def main():
 
         timer.Timing("preprocess")
         input_name = session.get_inputs()[0].name
-        outputs = session.run(None, {input_name: image})
+        outputs = session.run(None, {input_name: img_in})
 
         timer.Timing("inference")
         boxes = post_processing(img_in, 0.4, 0.6, outputs)
 
-        plot_boxes_cv2(image_src, boxes[0], savename='predictions_onnx.jpg', class_names=CLASS_NAMES)
+        plot_boxes_cv2(image_org, boxes[0], savename='predictions_onnx.jpg', class_names=CLASS_NAMES)
 
 if __name__ == '__main__':
     main()
