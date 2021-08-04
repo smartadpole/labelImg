@@ -10,7 +10,6 @@
 import sys, os
 
 import onnxruntime
-
 from libs.detector.utils.file import Walk, Timer
 
 CURRENT_DIR = os.path.dirname(__file__)
