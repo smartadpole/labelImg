@@ -29,7 +29,7 @@ class YOLOv3(object):
         image = yoloPreProcess(image)
         input_name = self.session.get_inputs()[0].name
         outputs = self.session.run(None, {input_name: image})
-        boxes = post_processing(image, 0.4, 0.6, outputs)
+        boxes = post_processing(image, THRESHOLD_YOLOV3, 0.6, outputs)
         class_names=load_class_names(namesfile='./config/i18R/classes.names')
 
         # # TODO : get rect
@@ -40,8 +40,8 @@ class YOLOv3(object):
                 result = [r for r in result if r[4] > THRESHOLD_YOLOV3]
                 for r in result:
                     x, y, x2, y2, score, score1, label = r
-                    if label == 4:  # detect humans only
-                        continue
+                    # if label == 0:  # detect humans only
+                    #     continue
 
                     y = y * oriY
                     y2 = y2 * oriY
