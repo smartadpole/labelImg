@@ -64,13 +64,15 @@ from libs.utils.utils import *
 from libs.detector.ssd.model import SSD
 from libs.detector.centernet.model import CenterNet
 from libs.detector.yolov5.model import YOLOv5
+from libs.detector.yolov3.model import YOLOv3
 
 
 onnxModelIndex = 0
-MODEL_PARAMS = {0: "_SSD", 1: "_CENTER_NET", 2: "_YOLOv5"}  # TODO models later should be added here
+MODEL_PARAMS = {0: "_SSD", 1: "_CENTER_NET", 2: "_YOLOv5", 3: "_YOLOv3"}  # TODO models later should be added here
 MODEL_PATH = {"_SSD": "config/cleaner/ssd.onnx",
               "_CENTER_NET": "config/human/centernet.onnx",
-              "_YOLOv5": "config/human/yolov5.onnx",}
+              "_YOLOv5": "config/human/yolov5.onnx",
+              "_YOLOv3": "config/i18R/yolov3.onnx"}
 MAX_IOU_FOR_DELETE = 0.6
 ADD_RECTBOX_BY_SERIES_NUM = 1000
 IOU_NMS = 0.5
@@ -499,7 +501,12 @@ class MainWindow(QMainWindow, WindowMixin):
         self.model2.setChecked(False)
         self.model2.triggered.connect(self.changeStatusModel2)
 
-        addActions(self.menus.models, (self.model0, self.model1, self.model2))
+        self.model3 = QAction("YOLOv3", self)
+        self.model3.setCheckable(True)
+        self.model3.setChecked(False)
+        self.model3.triggered.connect(self.changeStatusModel3)
+
+        addActions(self.menus.models, (self.model0, self.model1, self.model2, self.model3))
 
         addActions(self.menus.file,
                    (open, opendir, copyPrevBounding, changeSavedir, openAnnotation, self.menus.recentFiles, save, save_format, saveAs, close, resetAll, deleteImg, quit))
@@ -615,6 +622,7 @@ class MainWindow(QMainWindow, WindowMixin):
         self.SSD = SSD(os.path.join(CURRENT_DIR, "config/cleaner/ssd.onnx"))
         self.centerNet = CenterNet(os.path.join(CURRENT_DIR, "config/human/centernet.onnx"))
         self.YOLOv5 = YOLOv5(os.path.join(CURRENT_DIR, "config/human/yolov5.onnx"))
+        self.YOLOv3 = YOLOv3(os.path.join(CURRENT_DIR, "config/i18R/yolov3.onnx"))
 
         # Models to be used to inference are controlled in this dict
         self.theseModels = {0: False, 1: True, 2: False}    # by default, CenterNet is used for inference
@@ -809,6 +817,15 @@ class MainWindow(QMainWindow, WindowMixin):
         global onnxModelIndex
         onnxModelIndex = 2
         if self.model2.isChecked():
+            self.theseModels[onnxModelIndex] = True
+        else:
+            self.theseModels[onnxModelIndex] = False
+
+    def changeStatusModel3(self):
+        # YOLOv3
+        global onnxModelIndex
+        onnxModelIndex = 3
+        if self.model3.isChecked():
             self.theseModels[onnxModelIndex] = True
         else:
             self.theseModels[onnxModelIndex] = False
@@ -1722,6 +1739,10 @@ class MainWindow(QMainWindow, WindowMixin):
     def autoLabel_YOLOv5(self):
         return self.YOLOv5.forward(self._loadImage4Detect())
         # return self.YOLOv5.forward(cv2.imread(self.filePath))
+
+    def autoLabel_YOLOv3(self):
+        return self.YOLOv3.forward(self._loadImage4Detect())
+        # return self.YOLOv3.forward(cv2.imread(self.filePath))
 
     def saveFile(self, _value=False):
         if self.defaultSaveDir is not None and len(ustr(self.defaultSaveDir)):
