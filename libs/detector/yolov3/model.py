@@ -40,8 +40,8 @@ class YOLOv3(object):
                 result = [r for r in result if r[4] > THRESHOLD_YOLOV3]
                 for r in result:
                     x, y, x2, y2, score, score1, label = r
-                    # if label == 0:  # detect humans only
-                    #     continue
+                    if label == 4 or label == 0:  # not to detect escalator_model
+                        continue
 
                     y = y * oriY
                     y2 = y2 * oriY
