@@ -620,7 +620,7 @@ class MainWindow(QMainWindow, WindowMixin):
             self.openDirDialog(dirpath=self.filePath, silent=True)
 
         # Models to be used to inference are controlled in this dict
-        self.theseModels = {0: False, 1: True, 2: False}    # by default, CenterNet is used for inference
+        self.theseModels = {0: False, 1: True, 2: False, 3: False}    # by default, CenterNet is used for inference
 
 
     def _loadClassNames4Detect(self):
