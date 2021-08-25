@@ -74,7 +74,7 @@ MODEL_PATH = {"_SSD": "config/cleaner/ssd.onnx",
               "_YOLOv5": "config/human/yolov5.onnx",
               "_YOLOv3": "config/i18R/yolov3.onnx"}
 MAX_IOU_FOR_DELETE = 0.6
-ADD_RECTBOX_BY_SERIES_NUM = 1000
+ADD_RECTBOX_BY_SERIES_NUM = 10
 IOU_NMS = 0.5
 # IMG_SIZE_DICT = {'IMAGE_SIZE'+MODEL_PARAMS[0]: 320,
 #                  'IMAGE_SIZE'+MODEL_PARAMS[1]: 320,
@@ -619,13 +619,8 @@ class MainWindow(QMainWindow, WindowMixin):
         if self.filePath and os.path.isdir(self.filePath):
             self.openDirDialog(dirpath=self.filePath, silent=True)
 
-        self.SSD = SSD(os.path.join(CURRENT_DIR, "config/cleaner/ssd.onnx"))
-        self.centerNet = CenterNet(os.path.join(CURRENT_DIR, "config/human/centernet.onnx"))
-        self.YOLOv5 = YOLOv5(os.path.join(CURRENT_DIR, "config/human/yolov5.onnx"))
-        self.YOLOv3 = YOLOv3(os.path.join(CURRENT_DIR, "config/i18R/yolov3.onnx"))
-
         # Models to be used to inference are controlled in this dict
-        self.theseModels = {0: False, 1: True, 2: False}    # by default, CenterNet is used for inference
+        self.theseModels = {0: False, 1: True, 2: False, 3: False}    # by default, CenterNet is used for inference
 
 
     def _loadClassNames4Detect(self):
@@ -1688,6 +1683,11 @@ class MainWindow(QMainWindow, WindowMixin):
         return gray
 
     def autoLabel(self):
+        self.SSD = SSD(os.path.join(CURRENT_DIR, "config/cleaner/ssd.onnx"))
+        self.centerNet = CenterNet(os.path.join(CURRENT_DIR, "config/human/centernet.onnx"))
+        self.YOLOv5 = YOLOv5(os.path.join(CURRENT_DIR, "config/human/yolov5.onnx"))
+        self.YOLOv3 = YOLOv3(os.path.join(CURRENT_DIR, "config/i18R/yolov3.onnx"))
+
         if not self.fullyAutoMode:
             if is_onnxok:
                 # if not in the fullyAutoMode
