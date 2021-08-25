@@ -118,6 +118,7 @@ class MainWindow(QMainWindow, WindowMixin):
         self.setWindowTitle(__appname__)
 
         self.fullyAutoMode = False
+        self.timer4autolabel = QTimer(self)
 
         self.class_name_file_4_detect = os.path.join(CURRENT_DIR, "config/class_names.txt")
         self.model_file_4_detect = os.path.join(CURRENT_DIR, MODEL_PATH[MODEL_PARAMS[onnxModelIndex]])
@@ -1695,12 +1696,14 @@ class MainWindow(QMainWindow, WindowMixin):
             else:
                 return
         else:
-            if is_onnxok:
+            if self.timer4autolabel.isActive():
+                self.timer4autolabel.stop()
+                autoLabel.setText("Fully autoLabel")
+            elif is_onnxok:
                 # in the fullyAutoMode
-                self.i = 0
-                self.timer = QTimer(self)
-                self.timer.start(20)
-                self.timer.timeout.connect(self.autoThreadFunc)
+                self.timer4autolabel.start(20)
+                self.timer4autolabel.timeout.connect(self.autoThreadFunc)
+                autoLabel.setText("stop autoLabel")
             else:
                 return
 
@@ -1714,9 +1717,10 @@ class MainWindow(QMainWindow, WindowMixin):
                 self.auto()
                 self.openNextImg()
             if next_id == tlen:
-                self.timer.stop()
+                self.timer4autolabel.stop()
+                autoLabel.setText("Fully autoLabel")
         else:
-            self.timer.stop()
+            self.timer4autolabel.stop()
 
 
     def auto(self):

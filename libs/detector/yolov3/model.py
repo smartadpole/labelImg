@@ -40,7 +40,7 @@ class YOLOv3(object):
                 result = [r for r in result if r[4] > THRESHOLD_YOLOV3]
                 for r in result:
                     x, y, x2, y2, score, score1, label = r
-                    if label == 4 or label == 0:  # not to detect escalator_model
+                    if not (label == 2):
                         continue
 
                     y = y * oriY
