@@ -1695,17 +1695,19 @@ class MainWindow(QMainWindow, WindowMixin):
             else:
                 return
         else:
-
             # in the fullyAutoMode
-            if is_onnxok:
+            if self.timer4autolabel.isActive():
+                self.timer4autolabel.stop()
+                autoLabel.setText("Fully autoLabel")
+            elif is_onnxok:
                 if self.theseModels[0]:
-                    classes=load_class_names("config/class_names.txt")
+                    classes = load_class_names("config/class_names.txt")
                     class_select = ClassDialog(parent=self, listItem=classes)
-                    self.SSD = SSD(os.path.join(CURRENT_DIR, "config/cleaner/ssd.onnx"),class_select)
+                    self.SSD = SSD(os.path.join(CURRENT_DIR, "config/cleaner/ssd.onnx"), class_select)
                 elif self.theseModels[1]:
                     classes = load_class_names("config/class_names.txt")
                     class_select = ClassDialog(parent=self, listItem=classes).popUp()
-                    self.centerNet = CenterNet(os.path.join(CURRENT_DIR, "config/human/centernet.onnx"),class_select)
+                    self.centerNet = CenterNet(os.path.join(CURRENT_DIR, "config/human/centernet.onnx"), class_select)
                 elif self.theseModels[2]:
                     classes = load_class_names("config/class_names.txt")
                     class_select = ClassDialog(parent=self, listItem=classes).popUp()
@@ -1713,18 +1715,8 @@ class MainWindow(QMainWindow, WindowMixin):
                 elif self.theseModels[3]:
                     self.classes = load_class_names("config/i18R/classes.names")
                     class_select = ClassDialog(parent=self, listItem=self.classes).popUp()
-                    self.YOLOv3 = YOLOv3(os.path.join(CURRENT_DIR, "config/i18R/yolov3.onnx"),class_select)
+                    self.YOLOv3 = YOLOv3(os.path.join(CURRENT_DIR, "config/i18R/yolov3.onnx"), class_select)
 
-                self.i = 0
-                self.timer = QTimer(self)
-                self.timer.start(20)
-                self.timer.timeout.connect(self.autoThreadFunc)
-
-            if self.timer4autolabel.isActive():
-                self.timer4autolabel.stop()
-                autoLabel.setText("Fully autoLabel")
-            elif is_onnxok:
-                # in the fullyAutoMode
                 self.timer4autolabel.start(20)
                 self.timer4autolabel.timeout.connect(self.autoThreadFunc)
                 autoLabel.setText("stop autoLabel")
