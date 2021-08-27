@@ -1683,20 +1683,25 @@ class MainWindow(QMainWindow, WindowMixin):
         return gray
 
     def autoLabel(self):
-        self.SSD = SSD(os.path.join(CURRENT_DIR, "config/cleaner/ssd.onnx"))
-        self.centerNet = CenterNet(os.path.join(CURRENT_DIR, "config/human/centernet.onnx"))
-        self.YOLOv5 = YOLOv5(os.path.join(CURRENT_DIR, "config/human/yolov5.onnx"))
-        self.YOLOv3 = YOLOv3(os.path.join(CURRENT_DIR, "config/i18R/yolov3.onnx"))
 
         if not self.fullyAutoMode:
+            # if not in the fullyAutoMode
             if is_onnxok:
-                # if not in the fullyAutoMode
                 self.auto()
             else:
                 return
         else:
+            # in the fullyAutoMode
             if is_onnxok:
-                # in the fullyAutoMode
+                if self.theseModels[0]:
+                    self.SSD = SSD(os.path.join(CURRENT_DIR, "config/cleaner/ssd.onnx"))
+                elif self.theseModels[1]:
+                    self.centerNet = CenterNet(os.path.join(CURRENT_DIR, "config/human/centernet.onnx"))
+                elif self.theseModels[2]:
+                    self.YOLOv5 = YOLOv5(os.path.join(CURRENT_DIR, "config/human/yolov5.onnx"))
+                elif self.theseModels[3]:
+                    self.YOLOv3 = YOLOv3(os.path.join(CURRENT_DIR, "config/i18R/yolov3.onnx"))
+
                 self.i = 0
                 self.timer = QTimer(self)
                 self.timer.start(20)
