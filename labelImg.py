@@ -1757,14 +1757,19 @@ class MainWindow(QMainWindow, WindowMixin):
 
     def auto(self):
         shapes = []
-        results_models=[]
+        results=[]
+        results_box=[]
+        results_conf=[]
         for i in range(len(MODEL_PARAMS)):
             if self.theseModels[i]:
-                results = eval("self.autoLabel" + MODEL_PARAMS[i] + "()")
-                results_models.extend(results)
+                result,box,conf = eval("self.autoLabel" + MODEL_PARAMS[i] + "()")
+                results.extend(result)
+                results_box.extend(box)
+                results_conf.extend(conf)
 
                 for res in results:
                     shapes.append(res)
+        nms_cpu()
 
         self.loadLabels(shapes)
         self.setDirty()

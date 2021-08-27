@@ -34,6 +34,8 @@ class YOLOv5(object):
 
         # TODO : get rect
         shapes = []
+        results_box=[]
+        results_conf=[]
         for result in results_batch:
             if len(result) > 0:
                 result = result.tolist()
@@ -49,5 +51,6 @@ class YOLOv5(object):
                     x2 = x2 / IMAGE_SIZE_YOLOV5 * oriX
                     x, y, x2, y2, score, label = int(x), int(y), int(x2), int(y2), float(score), int(label)
                     shapes.append((self.classes[label], [(x, y), (x2, y), (x2, y2), (x, y2)], None, None, False, 0))
-
-        return shapes
+                    results_box.append([x, y, x2, y2])
+                    results_conf.append([score])
+        return shapes,results_box,results_box
