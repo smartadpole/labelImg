@@ -12,6 +12,8 @@ import subprocess
 from functools import partial
 from collections import defaultdict
 
+from libs.detector.yolov3.postprocess.postprocess import load_class_names
+
 CURRENT_DIR = os.path.dirname(__file__)
 
 try:
@@ -1693,36 +1695,42 @@ class MainWindow(QMainWindow, WindowMixin):
             else:
                 return
         else:
-            self.ClassDialog=ClassDialog(parent=self, listItem=self.labelHist)
-            text = self.ClassDialog.popUp()
-            print(text)
+
             # in the fullyAutoMode
-            # if is_onnxok:
-            #     if self.theseModels[0]:
-            #         self.SSD = SSD(os.path.join(CURRENT_DIR, "config/cleaner/ssd.onnx"))
-            #     elif self.theseModels[1]:
-            #         self.centerNet = CenterNet(os.path.join(CURRENT_DIR, "config/human/centernet.onnx"))
-            #     elif self.theseModels[2]:
-            #         self.YOLOv5 = YOLOv5(os.path.join(CURRENT_DIR, "config/human/yolov5.onnx"))
-            #     elif self.theseModels[3]:
-            #         self.YOLOv3 = YOLOv3(os.path.join(CURRENT_DIR, "config/i18R/yolov3.onnx"))
-            #
-            #     self.i = 0
-            #     self.timer = QTimer(self)
-            #     self.timer.start(20)
-            #     self.timer.timeout.connect(self.autoThreadFunc)
-            #
-            # if self.timer4autolabel.isActive():
-            #     self.timer4autolabel.stop()
-            #     autoLabel.setText("Fully autoLabel")
-            # elif is_onnxok:
-            #     # in the fullyAutoMode
-            #     self.timer4autolabel.start(20)
-            #     self.timer4autolabel.timeout.connect(self.autoThreadFunc)
-            #     autoLabel.setText("stop autoLabel")
-            #
-            # else:
-            #     return
+            if is_onnxok:
+                if self.theseModels[0]:
+                    classes=load_class_names("config/class_names.txt")
+                    class_select = ClassDialog(parent=self, listItem=classes)
+                    self.SSD = SSD(os.path.join(CURRENT_DIR, "config/cleaner/ssd.onnx"),class_select)
+                elif self.theseModels[1]:
+                    classes = load_class_names("config/class_names.txt")
+                    class_select = ClassDialog(parent=self, listItem=classes).popUp()
+                    self.centerNet = CenterNet(os.path.join(CURRENT_DIR, "config/human/centernet.onnx"),class_select)
+                elif self.theseModels[2]:
+                    classes = load_class_names("config/class_names.txt")
+                    class_select = ClassDialog(parent=self, listItem=classes).popUp()
+                    self.YOLOv5 = YOLOv5(os.path.join(CURRENT_DIR, "config/human/yolov5.onnx"))
+                elif self.theseModels[3]:
+                    self.classes = load_class_names("config/i18R/classes.names")
+                    class_select = ClassDialog(parent=self, listItem=self.classes).popUp()
+                    self.YOLOv3 = YOLOv3(os.path.join(CURRENT_DIR, "config/i18R/yolov3.onnx"),class_select)
+
+                self.i = 0
+                self.timer = QTimer(self)
+                self.timer.start(20)
+                self.timer.timeout.connect(self.autoThreadFunc)
+
+            if self.timer4autolabel.isActive():
+                self.timer4autolabel.stop()
+                autoLabel.setText("Fully autoLabel")
+            elif is_onnxok:
+                # in the fullyAutoMode
+                self.timer4autolabel.start(20)
+                self.timer4autolabel.timeout.connect(self.autoThreadFunc)
+                autoLabel.setText("stop autoLabel")
+
+            else:
+                return
 
     def autoThreadFunc(self):
         if self.fullyAutoMode:

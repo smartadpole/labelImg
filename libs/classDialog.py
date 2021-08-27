@@ -15,12 +15,14 @@ class ClassDialog(QDialog):
 
     def __init__(self, text="Enter object label", parent=None, listItem=None):
         super(ClassDialog, self).__init__(parent)
+        self.classes=[]
+        self.listItem=listItem
 
         layout = QVBoxLayout()
 
-        self.checkboxs=listItem.copy()
-        for i in range(len(listItem)):
-            self.checkboxs[i] = QCheckBox(str(listItem[i]))
+        self.checkboxs=self.listItem.copy()
+        for i in range(len(self.listItem)):
+            self.checkboxs[i] = QCheckBox(str(self.listItem[i]))
             layout.addWidget(self.checkboxs[i])
         self.buttonBox = bb = BB(BB.Ok | BB.Cancel, Qt.Horizontal, self)
         bb.button(BB.Ok).setIcon(newIcon('done'))
@@ -31,6 +33,9 @@ class ClassDialog(QDialog):
         self.setLayout(layout)
 
     def validate(self):
+        for i in range(len(self.checkboxs)):
+            if self.checkboxs[i].isChecked():
+                self.classes.append(self.listItem[i])
         self.accept()
         # try:
         #     if self.edit.text().trimmed():
@@ -41,10 +46,6 @@ class ClassDialog(QDialog):
         #         self.accept()
 
     def popUp(self,  move=True):
-        classes = []
-        for i in range(len(self.checkboxs)):
-            if self.checkboxs[i].isChecked():
-                classes.append(self.datasets[i])
         if move:
             cursor_pos = QCursor.pos()
             parent_bottomRight = self.parentWidget().geometry()
@@ -56,6 +57,6 @@ class ClassDialog(QDialog):
             if cursor_pos.y() > max_global.y():
                 cursor_pos.setY(max_global.y())
             self.move(cursor_pos)
-        return classes if self.exec_() else None
+        return self.classes if self.exec_() else None
 
 

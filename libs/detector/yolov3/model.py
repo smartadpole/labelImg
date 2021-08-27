@@ -16,7 +16,8 @@ import cv2
 import onnxruntime
 
 class YOLOv3(object):
-    def __init__(self, file='./config/i18R/yolov3.onnx'):
+    def __init__(self, file='./config/i18R/yolov3.onnx',classes=[]):
+        self.classes=classes
         if os.path.isfile(file):
             self.session = onnxruntime.InferenceSession(file)
         else:
@@ -40,7 +41,8 @@ class YOLOv3(object):
                 result = [r for r in result if r[4] > THRESHOLD_YOLOV3]
                 for r in result:
                     x, y, x2, y2, score, score1, label = r
-                    if not (label == 2):
+
+                    if not class_names[label] in self.classes:
                         continue
 
                     y = y * oriY
