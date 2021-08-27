@@ -1692,7 +1692,6 @@ class MainWindow(QMainWindow, WindowMixin):
             else:
                 return
         else:
-<<<<<<< HEAD
             # in the fullyAutoMode
             if is_onnxok:
                 if self.theseModels[0]:
@@ -1708,7 +1707,7 @@ class MainWindow(QMainWindow, WindowMixin):
                 self.timer = QTimer(self)
                 self.timer.start(20)
                 self.timer.timeout.connect(self.autoThreadFunc)
-=======
+
             if self.timer4autolabel.isActive():
                 self.timer4autolabel.stop()
                 autoLabel.setText("Fully autoLabel")
@@ -1717,7 +1716,7 @@ class MainWindow(QMainWindow, WindowMixin):
                 self.timer4autolabel.start(20)
                 self.timer4autolabel.timeout.connect(self.autoThreadFunc)
                 autoLabel.setText("stop autoLabel")
->>>>>>> 3a0b15a62c5e5caa3308e75d7706018963123cbf
+
             else:
                 return
 
