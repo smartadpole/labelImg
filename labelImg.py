@@ -144,6 +144,7 @@ class MainWindow(QMainWindow, WindowMixin):
         self.mImgList = []
         self.dirname = None
         self.labelHist = []
+        self.classes=[]
         self.lastOpenDir = None
 
         # Whether we need to save or not.
@@ -1685,6 +1686,23 @@ class MainWindow(QMainWindow, WindowMixin):
         gray = cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB)
 
         return gray
+    def load_classes(self):
+
+        if self.theseModels[0]:
+            classes = load_class_names("config/class_names.txt")
+            self.classes.extend([i for i in classes if i not in self.classes])
+
+        if self.theseModels[1]:
+            classes = load_class_names("config/class_names.txt")
+            self.classes.extend([i for i in classes if i not in self.classes])
+
+        if self.theseModels[2]:
+            classes = load_class_names("config/class_names.txt")
+            self.classes.extend([i for i in classes if i not in self.classes])
+
+        if self.theseModels[3]:
+            classes = load_class_names("config/i18R/classes.names")
+            self.classes.extend([i for i in classes if i not in self.classes])
 
     def autoLabel(self):
 
@@ -1700,20 +1718,17 @@ class MainWindow(QMainWindow, WindowMixin):
                 self.timer4autolabel.stop()
                 autoLabel.setText("Fully autoLabel")
             elif is_onnxok:
+                self.load_classes()
                 if self.theseModels[0]:
-                    classes = load_class_names("config/class_names.txt")
-                    class_select = ClassDialog(parent=self, listItem=classes)
+                    class_select = ClassDialog(parent=self, listItem=self.classes).popUp()
                     self.SSD = SSD(os.path.join(CURRENT_DIR, "config/cleaner/ssd.onnx"), class_select)
                 elif self.theseModels[1]:
-                    classes = load_class_names("config/class_names.txt")
-                    class_select = ClassDialog(parent=self, listItem=classes).popUp()
+                    class_select = ClassDialog(parent=self, listItem=self.classes).popUp()
                     self.centerNet = CenterNet(os.path.join(CURRENT_DIR, "config/human/centernet.onnx"), class_select)
                 elif self.theseModels[2]:
-                    classes = load_class_names("config/class_names.txt")
-                    class_select = ClassDialog(parent=self, listItem=classes).popUp()
-                    self.YOLOv5 = YOLOv5(os.path.join(CURRENT_DIR, "config/human/yolov5.onnx"))
+                    class_select = ClassDialog(parent=self, listItem=self.classes).popUp()
+                    self.YOLOv5 = YOLOv5(os.path.join(CURRENT_DIR, "config/human/yolov5.onnx"),class_select)
                 elif self.theseModels[3]:
-                    self.classes = load_class_names("config/i18R/classes.names")
                     class_select = ClassDialog(parent=self, listItem=self.classes).popUp()
                     self.YOLOv3 = YOLOv3(os.path.join(CURRENT_DIR, "config/i18R/yolov3.onnx"), class_select)
 

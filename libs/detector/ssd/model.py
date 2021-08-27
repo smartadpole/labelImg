@@ -14,7 +14,8 @@ from libs.detector.ssd.postprocess.ssd import PostProcessor_SSD
 from libs.detector.ssd.postprocess.ssd import THRESHOLD
 
 class SSD(object):
-    def __init__(self, file='./config/cleaner/ssd.onnx'):
+    def __init__(self, file='./config/cleaner/ssd.onnx',classes=[]):
+        self.classes=[]
         if os.path.isfile(file):
             self.net = ONNXModel(file)
         else:
@@ -34,7 +35,7 @@ class SSD(object):
                     x, y, x2, y2, label, score = r
                     x, y, x2, y2, label = int(x) * ratio[0], int(y) * ratio[1], int(x2) * ratio[0], int(y2) * ratio[
                         1], int(label)
-                    if score < THRESHOLD[label] or label == 0:
+                    if not class_names_4_detect[label] in self.classes:
                         continue
 
                     shapes.append(
