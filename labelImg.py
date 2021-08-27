@@ -1693,7 +1693,10 @@ class MainWindow(QMainWindow, WindowMixin):
                 return
         else:
             # in the fullyAutoMode
-            if is_onnxok:
+            if self.timer4autolabel.isActive():
+                self.timer4autolabel.stop()
+                autoLabel.setText("Fully autoLabel")
+            elif is_onnxok:
                 if self.theseModels[0]:
                     self.SSD = SSD(os.path.join(CURRENT_DIR, "config/cleaner/ssd.onnx"))
                 elif self.theseModels[1]:
@@ -1703,16 +1706,6 @@ class MainWindow(QMainWindow, WindowMixin):
                 elif self.theseModels[3]:
                     self.YOLOv3 = YOLOv3(os.path.join(CURRENT_DIR, "config/i18R/yolov3.onnx"))
 
-                self.i = 0
-                self.timer = QTimer(self)
-                self.timer.start(20)
-                self.timer.timeout.connect(self.autoThreadFunc)
-
-            if self.timer4autolabel.isActive():
-                self.timer4autolabel.stop()
-                autoLabel.setText("Fully autoLabel")
-            elif is_onnxok:
-                # in the fullyAutoMode
                 self.timer4autolabel.start(20)
                 self.timer4autolabel.timeout.connect(self.autoThreadFunc)
                 autoLabel.setText("stop autoLabel")
