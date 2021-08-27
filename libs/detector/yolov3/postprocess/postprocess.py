@@ -69,6 +69,7 @@ def bbox_iou(box1, box2, x1y1x2y2=True):
 
 def nms_cpu(boxes, confs, nms_thresh=0.5, min_mode=False):
     # print(boxes.shape)
+
     x1 = boxes[:, 0]
     y1 = boxes[:, 1]
     x2 = boxes[:, 2]

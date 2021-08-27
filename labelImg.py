@@ -12,7 +12,7 @@ import subprocess
 from functools import partial
 from collections import defaultdict
 
-from libs.detector.yolov3.postprocess.postprocess import load_class_names
+from libs.detector.yolov3.postprocess.postprocess import load_class_names, nms_cpu
 
 CURRENT_DIR = os.path.dirname(__file__)
 
@@ -1719,17 +1719,14 @@ class MainWindow(QMainWindow, WindowMixin):
                 autoLabel.setText("Fully autoLabel")
             elif is_onnxok:
                 self.load_classes()
+                class_sel = ClassDialog(parent=self, listItem=self.classes).popUp()
                 if self.theseModels[0]:
-                    class_sel = ClassDialog(parent=self, listItem=self.classes).popUp()
                     self.SSD = SSD(os.path.join(CURRENT_DIR, "config/cleaner/ssd.onnx"), class_sel)
                 if self.theseModels[1]:
-                    class_sel = ClassDialog(parent=self, listItem=self.classes).popUp()
                     self.centerNet = CenterNet(os.path.join(CURRENT_DIR, "config/human/centernet.onnx"), class_sel)
                 if self.theseModels[2]:
-                    class_sel = ClassDialog(parent=self, listItem=self.classes).popUp()
                     self.YOLOv5 = YOLOv5(os.path.join(CURRENT_DIR, "config/human/yolov5.onnx"),class_sel)
                 if self.theseModels[3]:
-                    class_sel = ClassDialog(parent=self, listItem=self.classes).popUp()
                     self.YOLOv3 = YOLOv3(os.path.join(CURRENT_DIR, "config/i18R/yolov3.onnx"), class_sel)
 
                 self.timer4autolabel.start(20)
@@ -1763,15 +1760,23 @@ class MainWindow(QMainWindow, WindowMixin):
         for i in range(len(MODEL_PARAMS)):
             if self.theseModels[i]:
                 result,box,conf = eval("self.autoLabel" + MODEL_PARAMS[i] + "()")
-                results.extend(result)
-                results_box.extend(box)
-                results_conf.extend(conf)
+                for m in result:
+                    results.append(m)
+                for  n in box:
+                    results_box.append(n)
+                for j in conf:
+                    results_conf.append(j)
 
-                for res in results:
+                for res in result:
                     shapes.append(res)
-        nms_cpu()
 
-        self.loadLabels(shapes)
+        results_box=np.array(results_box).reshape((len(results_box),4)).tolist()
+        # results_conf=np.array(results_conf).reshape((None,1)).tolist()
+        keep=nms_cpu(results_box,results_conf)
+        shapes1=shapes[keep]
+
+
+        self.loadLabels(shapes1)
         self.setDirty()
 
     def autoLabel_SSD(self):

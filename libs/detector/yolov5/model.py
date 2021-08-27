@@ -42,8 +42,12 @@ class YOLOv5(object):
                 result = [r for r in result if r[4] > THRESHOLD_YOLOV5]
                 for r in result:
                     x, y, x2, y2, score, label = r
-                    if not self.classes[label] in self.class_cl:
+                    if int(label)>len(self.classes):
                         continue
+                    else:
+
+                        if not self.classes[int(label)] in self.class_sel:
+                            continue
 
                     y = y / IMAGE_SIZE_YOLOV5 * oriY
                     y2 = y2 / IMAGE_SIZE_YOLOV5 * oriY
@@ -52,5 +56,5 @@ class YOLOv5(object):
                     x, y, x2, y2, score, label = int(x), int(y), int(x2), int(y2), float(score), int(label)
                     shapes.append((self.classes[label], [(x, y), (x2, y), (x2, y2), (x, y2)], None, None, False, 0))
                     results_box.append([x, y, x2, y2])
-                    results_conf.append([score])
-        return shapes,results_box,results_box
+                    results_conf.append(score)
+        return shapes,results_box,results_conf
