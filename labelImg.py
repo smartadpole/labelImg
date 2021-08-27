@@ -1754,6 +1754,7 @@ class MainWindow(QMainWindow, WindowMixin):
 
     def auto(self):
         shapes = []
+        shapes1 = []
         results=[]
         results_box=[]
         results_conf=[]
@@ -1770,10 +1771,11 @@ class MainWindow(QMainWindow, WindowMixin):
                 for res in result:
                     shapes.append(res)
 
-        results_box=np.array(results_box).reshape((len(results_box),4)).tolist()
-        # results_conf=np.array(results_conf).reshape((None,1)).tolist()
+        results_box=np.array(results_box)
+        results_conf=np.array(results_conf)
         keep=nms_cpu(results_box,results_conf)
-        shapes1=shapes[keep]
+        for i in keep:
+            shapes1.append(shapes[i])
 
 
         self.loadLabels(shapes1)
