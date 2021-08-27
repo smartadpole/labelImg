@@ -12,9 +12,13 @@ from libs.detector.ssd.onnxmodel import ONNXModel
 from libs.detector.centernet.preprocess import pre_process as centerNetPreProcess
 from libs.detector.centernet.postprocess.postprocess import PostProcessor_CENTER_NET
 from libs.detector.centernet.postprocess.postprocess import CONFIDENCE_THRESHOLD, IMAGE_SIZE_CENTER_NET
+from libs.detector.yolov3.postprocess.postprocess import load_class_names
+
 
 class CenterNet(object):
-    def __init__(self, file='./config/human/centernet.onnx'):
+    def __init__(self, file='./config/human/centernet.onnx',class_sel=[]):
+        self.class_sel=class_sel
+        self.classes=load_class_names("config/class_names.txt")
         if os.path.isfile(file):
             self.net = ONNXModel(file)
         else:

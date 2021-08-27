@@ -1720,17 +1720,17 @@ class MainWindow(QMainWindow, WindowMixin):
             elif is_onnxok:
                 self.load_classes()
                 if self.theseModels[0]:
-                    class_select = ClassDialog(parent=self, listItem=self.classes).popUp()
-                    self.SSD = SSD(os.path.join(CURRENT_DIR, "config/cleaner/ssd.onnx"), class_select)
-                elif self.theseModels[1]:
-                    class_select = ClassDialog(parent=self, listItem=self.classes).popUp()
-                    self.centerNet = CenterNet(os.path.join(CURRENT_DIR, "config/human/centernet.onnx"), class_select)
-                elif self.theseModels[2]:
-                    class_select = ClassDialog(parent=self, listItem=self.classes).popUp()
-                    self.YOLOv5 = YOLOv5(os.path.join(CURRENT_DIR, "config/human/yolov5.onnx"),class_select)
-                elif self.theseModels[3]:
-                    class_select = ClassDialog(parent=self, listItem=self.classes).popUp()
-                    self.YOLOv3 = YOLOv3(os.path.join(CURRENT_DIR, "config/i18R/yolov3.onnx"), class_select)
+                    class_sel = ClassDialog(parent=self, listItem=self.classes).popUp()
+                    self.SSD = SSD(os.path.join(CURRENT_DIR, "config/cleaner/ssd.onnx"), class_sel)
+                if self.theseModels[1]:
+                    class_sel = ClassDialog(parent=self, listItem=self.classes).popUp()
+                    self.centerNet = CenterNet(os.path.join(CURRENT_DIR, "config/human/centernet.onnx"), class_sel)
+                if self.theseModels[2]:
+                    class_sel = ClassDialog(parent=self, listItem=self.classes).popUp()
+                    self.YOLOv5 = YOLOv5(os.path.join(CURRENT_DIR, "config/human/yolov5.onnx"),class_sel)
+                if self.theseModels[3]:
+                    class_sel = ClassDialog(parent=self, listItem=self.classes).popUp()
+                    self.YOLOv3 = YOLOv3(os.path.join(CURRENT_DIR, "config/i18R/yolov3.onnx"), class_sel)
 
                 self.timer4autolabel.start(20)
                 self.timer4autolabel.timeout.connect(self.autoThreadFunc)
@@ -1757,9 +1757,12 @@ class MainWindow(QMainWindow, WindowMixin):
 
     def auto(self):
         shapes = []
+        results_models=[]
         for i in range(len(MODEL_PARAMS)):
             if self.theseModels[i]:
                 results = eval("self.autoLabel" + MODEL_PARAMS[i] + "()")
+                results_models.extend(results)
+
                 for res in results:
                     shapes.append(res)
 
