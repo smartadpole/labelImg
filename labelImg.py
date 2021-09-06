@@ -3,6 +3,7 @@
 import argparse
 import codecs
 import distutils.spawn
+
 import os.path
 import platform
 import re
@@ -10,9 +11,8 @@ import sys
 import subprocess
 
 from functools import partial
-from collections import defaultdict
 
-from libs.detector.yolov3.postprocess.postprocess import load_class_names, nms_cpu
+from libs.detector.yolov3.postprocess.postprocess import load_class_names, non_max_suppression
 
 CURRENT_DIR = os.path.dirname(__file__)
 
@@ -487,25 +487,29 @@ class MainWindow(QMainWindow, WindowMixin):
         self.FullyAutoLabelOption.triggered.connect(self.toggleFullyAutoLabel)
 
         # Models
-        self.SSD = QAction('SSD', self)
-        self.SSD.setCheckable(True)
+        # self.SSD = QAction('SSD', self)
+        # self.SSD.setCheckable(True)
         # self.SSD.setChecked()
 
+        self.SSD = None
         self.model0 = QAction("SSD", self)
         self.model0.setCheckable(True)
         self.model0.setChecked(False)
         self.model0.triggered.connect(self.changeStatusModel0)
 
+        self.centerNet=None
         self.model1 = QAction("CenterNet", self)
         self.model1.setCheckable(True)
         self.model1.setChecked(True)
         self.model1.triggered.connect(self.changeStatusModel1)
 
+        self.YOLOv5=None
         self.model2 = QAction("YOLOv5", self)
         self.model2.setCheckable(True)
         self.model2.setChecked(False)
         self.model2.triggered.connect(self.changeStatusModel2)
 
+        self.YOLOv3=None
         self.model3 = QAction("YOLOv3", self)
         self.model3.setCheckable(True)
         self.model3.setChecked(False)
@@ -1709,6 +1713,14 @@ class MainWindow(QMainWindow, WindowMixin):
         if not self.fullyAutoMode:
             # if not in the fullyAutoMode
             if is_onnxok:
+                if self.theseModels[0] and self.SSD is None:
+                    self.SSD = SSD(os.path.join(CURRENT_DIR, MODEL_PATH[MODEL_PARAMS[0]]), [])
+                if self.theseModels[1] and self.centerNet is None:
+                    self.centerNet = CenterNet(os.path.join(CURRENT_DIR, MODEL_PATH[MODEL_PARAMS[1]]), [])
+                if self.theseModels[2] and self.YOLOv5 is None:
+                    self.YOLOv5 = YOLOv5(os.path.join(CURRENT_DIR, MODEL_PATH[MODEL_PARAMS[2]]), [])
+                if self.theseModels[3] and self.YOLOv3 is None:
+                    self.YOLOv3 = YOLOv3(os.path.join(CURRENT_DIR, MODEL_PATH[MODEL_PARAMS[3]]), [])
                 self.auto()
             else:
                 return
@@ -1717,21 +1729,25 @@ class MainWindow(QMainWindow, WindowMixin):
             if self.timer4autolabel.isActive():
                 self.timer4autolabel.stop()
                 autoLabel.setText("Fully autoLabel")
+
             elif is_onnxok:
+
                 self.load_classes()
                 class_sel = ClassDialog(parent=self, listItem=self.classes).popUp()
-                if self.theseModels[0]:
-                    self.SSD = SSD(os.path.join(CURRENT_DIR, "config/cleaner/ssd.onnx"), class_sel)
-                if self.theseModels[1]:
-                    self.centerNet = CenterNet(os.path.join(CURRENT_DIR, "config/human/centernet.onnx"), class_sel)
-                if self.theseModels[2]:
-                    self.YOLOv5 = YOLOv5(os.path.join(CURRENT_DIR, "config/human/yolov5.onnx"),class_sel)
-                if self.theseModels[3]:
-                    self.YOLOv3 = YOLOv3(os.path.join(CURRENT_DIR, "config/i18R/yolov3.onnx"), class_sel)
 
-                self.timer4autolabel.start(20)
-                self.timer4autolabel.timeout.connect(self.autoThreadFunc)
-                autoLabel.setText("stop autoLabel")
+                if class_sel is not None:
+                    if self.theseModels[0] and self.SSD is None:
+                        self.SSD = SSD(os.path.join(CURRENT_DIR, MODEL_PATH[MODEL_PARAMS[0]]), class_sel)
+                    if self.theseModels[1] and self.centerNet is None:
+                        self.centerNet = CenterNet(os.path.join(CURRENT_DIR, MODEL_PATH[MODEL_PARAMS[1]]), class_sel)
+                    if self.theseModels[2] and self.YOLOv5 is None:
+                        self.YOLOv5 = YOLOv5(os.path.join(CURRENT_DIR, MODEL_PATH[MODEL_PARAMS[2]]), class_sel)
+                    if self.theseModels[3] and self.YOLOv3 is None:
+                        self.YOLOv3 = YOLOv3(os.path.join(CURRENT_DIR, MODEL_PATH[MODEL_PARAMS[3]]), class_sel)
+
+                    self.timer4autolabel.start(20)
+                    self.timer4autolabel.timeout.connect(self.autoThreadFunc)
+                    autoLabel.setText("stop autoLabel")
 
             else:
                 return
@@ -1753,32 +1769,24 @@ class MainWindow(QMainWindow, WindowMixin):
 
 
     def auto(self):
+
         shapes = []
-        shapes1 = []
-        results=[]
         results_box=[]
-        results_conf=[]
         for i in range(len(MODEL_PARAMS)):
             if self.theseModels[i]:
-                result,box,conf = eval("self.autoLabel" + MODEL_PARAMS[i] + "()")
-                for m in result:
-                    results.append(m)
-                for  n in box:
-                    results_box.append(n)
-                for j in conf:
-                    results_conf.append(j)
-
-                for res in result:
-                    shapes.append(res)
+                result,box = eval("self.autoLabel" + MODEL_PARAMS[i] + "()")
+                for j in box:
+                    j[5]=self.classes.index(j[5])
+                    results_box.append(j)
 
         results_box=np.array(results_box)
-        results_conf=np.array(results_conf)
-        keep=nms_cpu(results_box,results_conf)
-        for i in keep:
-            shapes1.append(shapes[i])
+        keep=non_max_suppression(results_box)
+        for m in keep:
+            m=m.numpy()
+            x,y,x2,y2=int(m[0]),int(m[1]),int(m[2]),int(m[3])
+            shapes.append((self.classes[int(m[5])], [(x, y), (x2, y), (x2, y2), (x, y2)], None, None, False, 0))
 
-
-        self.loadLabels(shapes1)
+        self.loadLabels(shapes)
         self.setDirty()
 
     def autoLabel_SSD(self):

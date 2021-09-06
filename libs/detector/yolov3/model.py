@@ -17,8 +17,11 @@ import onnxruntime
 
 class YOLOv3(object):
     def __init__(self, file='./config/i18R/yolov3.onnx',class_sel=[]):
-        self.class_sel=class_sel
         self.classes = load_class_names("config/i18R/classes.names")
+        if class_sel is None:
+            self.class_sel = self.classes
+        else:
+            self.class_sel=class_sel
         if os.path.isfile(file):
             self.session = onnxruntime.InferenceSession(file)
         else:
@@ -37,7 +40,6 @@ class YOLOv3(object):
         # # TODO : get rect
         shapes = []
         results_box=[]
-        results_conf=[]
         for result in boxes:
             if len(result) > 0:
                 result = result
@@ -56,6 +58,5 @@ class YOLOv3(object):
                     x2 = x2 * oriX
                     x, y, x2, y2, score, label = int(x), int(y), int(x2), int(y2), float(score), int(label)
                     shapes.append((self.classes[label], [(x, y), (x2, y), (x2, y2), (x, y2)], None, None, False, 0))
-                    results_box.append([x, y, x2, y2])
-                    results_conf.append(score)
-        return shapes,results_box,results_conf
+                    results_box.append([x, y, x2, y2,score,self.classes[label]])
+        return shapes,results_box

@@ -37,13 +37,7 @@ class ClassDialog(QDialog):
             if self.checkboxs[i].isChecked():
                 self.classes.append(self.listItem[i])
         self.accept()
-        # try:
-        #     if self.edit.text().trimmed():
-        #         self.accept()
-        # except AttributeError:
-        #     # PyQt5: AttributeError: 'str' object has no attribute 'trimmed'
-        #     if self.edit.text().strip():
-        #         self.accept()
+
 
     def popUp(self,  move=True):
         if move:
