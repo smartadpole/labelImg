@@ -16,7 +16,10 @@ import cv2
 import onnxruntime
 
 class YOLOv3(object):
-    def __init__(self, file='./config/i18R/yolov3.onnx'):
+    def __init__(self, file='./config/i18R/yolov3.onnx',class_sel=[]):
+        self.classes = load_class_names("config/i18R/classes.names")
+        self.class_sel = self.classes if len(class_sel)==0 else class_sel
+
         if os.path.isfile(file):
             self.session = onnxruntime.InferenceSession(file)
         else:
@@ -30,17 +33,19 @@ class YOLOv3(object):
         input_name = self.session.get_inputs()[0].name
         outputs = self.session.run(None, {input_name: image})
         boxes = post_processing(image, THRESHOLD_YOLOV3, 0.6, outputs)
-        class_names=load_class_names(namesfile='./config/i18R/classes.names')
+
 
         # # TODO : get rect
         shapes = []
+        results_box=[]
         for result in boxes:
             if len(result) > 0:
                 result = result
                 result = [r for r in result if r[4] > THRESHOLD_YOLOV3]
                 for r in result:
                     x, y, x2, y2, score, score1, label = r
-                    if not (label == 2):
+
+                    if int(label) > len(self.classes)-1 or not self.classes[int(label)] in self.class_sel:
                         continue
 
                     y = y * oriY
@@ -48,6 +53,6 @@ class YOLOv3(object):
                     x = x * oriX
                     x2 = x2 * oriX
                     x, y, x2, y2, score, label = int(x), int(y), int(x2), int(y2), float(score), int(label)
-                    shapes.append((class_names[label], [(x, y), (x2, y), (x2, y2), (x, y2)], None, None, False, 0))
-
-        return shapes
+                    shapes.append((self.classes[label], [(x, y), (x2, y), (x2, y2), (x, y2)], None, None, False, 0))
+                    results_box.append([x, y, x2, y2,score,self.classes[label]])
+        return shapes,results_box
