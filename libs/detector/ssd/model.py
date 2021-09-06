@@ -16,6 +16,7 @@ from libs.detector.ssd.postprocess.ssd import THRESHOLD
 class SSD(object):
     def __init__(self, file='./config/cleaner/ssd.onnx',classes=[]):
         self.class_sel=classes
+
         if os.path.isfile(file):
             self.net = ONNXModel(file)
         else:

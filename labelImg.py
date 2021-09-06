@@ -1709,7 +1709,7 @@ class MainWindow(QMainWindow, WindowMixin):
             self.classes.extend([i for i in classes if i not in self.classes])
 
     def autoLabel(self):
-
+        self.load_classes()
         if not self.fullyAutoMode:
             # if not in the fullyAutoMode
             if is_onnxok:
@@ -1731,8 +1731,6 @@ class MainWindow(QMainWindow, WindowMixin):
                 autoLabel.setText("Fully autoLabel")
 
             elif is_onnxok:
-
-                self.load_classes()
                 class_sel = ClassDialog(parent=self, listItem=self.classes).popUp()
 
                 if class_sel is not None:
