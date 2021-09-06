@@ -1707,7 +1707,6 @@ class MainWindow(QMainWindow, WindowMixin):
                     self.classes_list.append(n)
 
     def autoLabel(self):
-
         self.load_classes()
         if not self.fullyAutoMode:
             # if not in the fullyAutoMode
@@ -1730,22 +1729,6 @@ class MainWindow(QMainWindow, WindowMixin):
                 autoLabel.setText("Fully autoLabel")
 
             elif is_onnxok:
-                if self.theseModels[0]:
-                    self.SSD = SSD(os.path.join(CURRENT_DIR, "config/cleaner/ssd.onnx"))
-                elif self.theseModels[1]:
-                    self.centerNet = CenterNet(os.path.join(CURRENT_DIR, "config/human/centernet.onnx"))
-                elif self.theseModels[2]:
-                    self.YOLOv5 = YOLOv5(os.path.join(CURRENT_DIR, "config/human/yolov5.onnx"))
-                elif self.theseModels[3]:
-                    self.YOLOv3 = YOLOv3(os.path.join(CURRENT_DIR, "config/i18R/yolov3.onnx"))
-
-                self.timer4autolabel.start(20)
-                self.timer4autolabel.timeout.connect(self.autoThreadFunc)
-                autoLabel.setText("stop autoLabel")
-
-
-            elif is_onnxok:
-
                 class_sel = ClassDialog(parent=self, classDicts=self.classes).popUp()
                 if class_sel is not None:
                     if self.theseModels[0] and self.SSD is None:
