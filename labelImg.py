@@ -9,10 +9,7 @@ import platform
 import re
 import sys
 import subprocess
-
 from functools import partial
-
-from libs.detector.yolov3.postprocess.postprocess import load_class_names, non_max_suppression
 
 CURRENT_DIR = os.path.dirname(__file__)
 
@@ -58,7 +55,7 @@ try:
     is_onnxok=True
 except:
     is_onnxok=False
-from libs.detector.ssd.postprocess.ssd import PostProcessor_SSD
+
 import numpy as np
 import cv2
 from libs.utils.file import MkdirSimple
@@ -68,6 +65,7 @@ from libs.detector.ssd.model import SSD
 from libs.detector.centernet.model import CenterNet
 from libs.detector.yolov5.model import YOLOv5
 from libs.detector.yolov3.model import YOLOv3
+from libs.detector.yolov3.postprocess.postprocess import load_class_names, non_max_suppression
 
 
 onnxModelIndex = 0
@@ -900,6 +898,7 @@ class MainWindow(QMainWindow, WindowMixin):
             item.setBackground(generateColorByText(text))
             self.setDirty()
             self.updateComboBox()
+
     def editLabel1(self):
         if not self.canvas.editing():
             return
@@ -913,6 +912,7 @@ class MainWindow(QMainWindow, WindowMixin):
             item.setBackground(generateColorByText(text))
             self.setDirty()
             self.updateComboBox()
+
     def editLabel2(self):
         if not self.canvas.editing():
             return
@@ -1691,6 +1691,7 @@ class MainWindow(QMainWindow, WindowMixin):
         gray = cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB)
 
         return gray
+
     def load_classes(self):
         self.classes = {}
         self.classes_list=[]
@@ -1758,7 +1759,6 @@ class MainWindow(QMainWindow, WindowMixin):
                     self.timer4autolabel.start(20)
                     self.timer4autolabel.timeout.connect(self.autoThreadFunc)
                     autoLabel.setText("stop autoLabel")
->>>>>>> autolabel_new
 
             else:
                 return
@@ -1777,7 +1777,6 @@ class MainWindow(QMainWindow, WindowMixin):
                 autoLabel.setText("Fully autoLabel")
         else:
             self.timer4autolabel.stop()
-
 
     def auto(self):
         shapes = []
@@ -2064,6 +2063,7 @@ class MainWindow(QMainWindow, WindowMixin):
 
     def toogleDrawSquare(self):
         self.canvas.setDrawingShapeToSquare(self.drawSquaresOption.isChecked())
+
 
 def inverted(color):
     return QColor(*[255 - v for v in color.getRgb()])
