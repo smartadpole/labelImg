@@ -17,12 +17,8 @@ import cv2
 
 class YOLOv5(object):
     def __init__(self, file='./config/human/yolov5.onnx',class_sel=[]):
-        self.classes = load_class_names("config/class_names.txt")
-
-        if len(class_sel)==0:
-            self.class_sel = self.classes
-        else:
-            self.class_sel=class_sel
+        self.classes = load_class_names("config/human/classes.names")
+        self.class_sel = self.classes if len(class_sel)==0 else class_sel
 
         if os.path.isfile(file):
             self.net = ONNXModel(file)

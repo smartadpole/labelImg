@@ -198,7 +198,6 @@ def non_max_suppression(prediction, conf_thres=0.5, nms_thres=0.4):
     prediction=torch.from_numpy(prediction)
 
     output = [None for _ in range(len(prediction))]
-    print(prediction)
 
     # Filter out confidence scores below threshold
     image_pred = prediction[prediction[:, 4] >= conf_thres]
@@ -223,7 +222,7 @@ def non_max_suppression(prediction, conf_thres=0.5, nms_thres=0.4):
         weights = detections[invalid, 4:5]
         # Merge overlapping bboxes by order of confidence
         detections[0, :4] = (weights * detections[invalid, :4]).sum(0) / weights.sum()
-        keep_boxes += [detections[0]]
+        keep_boxes += [detections[0].numpy()]
         detections = detections[~invalid]
     return keep_boxes
 

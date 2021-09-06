@@ -123,7 +123,7 @@ class MainWindow(QMainWindow, WindowMixin):
         self.fullyAutoMode = False
         self.timer4autolabel = QTimer(self)
 
-        self.class_name_file_4_detect = os.path.join(CURRENT_DIR, "config/class_names.txt")
+        self.class_name_file_4_detect = os.path.join(CURRENT_DIR, "config/human/classes.names")
         self.model_file_4_detect = os.path.join(CURRENT_DIR, MODEL_PATH[MODEL_PARAMS[onnxModelIndex]])
         self._initDetect()
 
@@ -144,7 +144,8 @@ class MainWindow(QMainWindow, WindowMixin):
         self.mImgList = []
         self.dirname = None
         self.labelHist = []
-        self.classes=[]
+        self.classes={}
+        self.classes_list=[]
         self.lastOpenDir = None
 
         # Whether we need to save or not.
@@ -1691,24 +1692,20 @@ class MainWindow(QMainWindow, WindowMixin):
 
         return gray
     def load_classes(self):
+        self.classes = {}
+        self.classes_list=[]
+        for i in range(len(self.theseModels)):
+            if self.theseModels[i]:
+                classes = load_class_names(os.path.split(MODEL_PATH[MODEL_PARAMS[i]])[0]+'/classes.names')
+                self.classes[MODEL_PARAMS[i]] = [i for i in classes if i not in self.classes]
 
-        if self.theseModels[0]:
-            classes = load_class_names("config/class_names.txt")
-            self.classes.extend([i for i in classes if i not in self.classes])
-
-        if self.theseModels[1]:
-            classes = load_class_names("config/class_names.txt")
-            self.classes.extend([i for i in classes if i not in self.classes])
-
-        if self.theseModels[2]:
-            classes = load_class_names("config/class_names.txt")
-            self.classes.extend([i for i in classes if i not in self.classes])
-
-        if self.theseModels[3]:
-            classes = load_class_names("config/i18R/classes.names")
-            self.classes.extend([i for i in classes if i not in self.classes])
+        for m in self.classes.values():
+            for n in m:
+                if n not in self.classes_list:
+                    self.classes_list.append(n)
 
     def autoLabel(self):
+
         self.load_classes()
         if not self.fullyAutoMode:
             # if not in the fullyAutoMode
@@ -1731,17 +1728,17 @@ class MainWindow(QMainWindow, WindowMixin):
                 autoLabel.setText("Fully autoLabel")
 
             elif is_onnxok:
-                class_sel = ClassDialog(parent=self, listItem=self.classes).popUp()
 
+                class_sel = ClassDialog(parent=self, classDicts=self.classes).popUp()
                 if class_sel is not None:
                     if self.theseModels[0] and self.SSD is None:
-                        self.SSD = SSD(os.path.join(CURRENT_DIR, MODEL_PATH[MODEL_PARAMS[0]]), class_sel)
+                        self.SSD = SSD(os.path.join(CURRENT_DIR, MODEL_PATH[MODEL_PARAMS[0]]), class_sel[MODEL_PARAMS[0]])
                     if self.theseModels[1] and self.centerNet is None:
-                        self.centerNet = CenterNet(os.path.join(CURRENT_DIR, MODEL_PATH[MODEL_PARAMS[1]]), class_sel)
+                        self.centerNet = CenterNet(os.path.join(CURRENT_DIR, MODEL_PATH[MODEL_PARAMS[1]]), class_sel[MODEL_PARAMS[1]])
                     if self.theseModels[2] and self.YOLOv5 is None:
-                        self.YOLOv5 = YOLOv5(os.path.join(CURRENT_DIR, MODEL_PATH[MODEL_PARAMS[2]]), class_sel)
+                        self.YOLOv5 = YOLOv5(os.path.join(CURRENT_DIR, MODEL_PATH[MODEL_PARAMS[2]]), class_sel[MODEL_PARAMS[2]])
                     if self.theseModels[3] and self.YOLOv3 is None:
-                        self.YOLOv3 = YOLOv3(os.path.join(CURRENT_DIR, MODEL_PATH[MODEL_PARAMS[3]]), class_sel)
+                        self.YOLOv3 = YOLOv3(os.path.join(CURRENT_DIR, MODEL_PATH[MODEL_PARAMS[3]]), class_sel[MODEL_PARAMS[3]])
 
                     self.timer4autolabel.start(20)
                     self.timer4autolabel.timeout.connect(self.autoThreadFunc)
@@ -1767,22 +1764,20 @@ class MainWindow(QMainWindow, WindowMixin):
 
 
     def auto(self):
-
         shapes = []
         results_box=[]
         for i in range(len(MODEL_PARAMS)):
             if self.theseModels[i]:
                 result,box = eval("self.autoLabel" + MODEL_PARAMS[i] + "()")
                 for j in box:
-                    j[5]=self.classes.index(j[5])
+                    j[5]=self.classes_list.index(j[5])
                     results_box.append(j)
 
         results_box=np.array(results_box)
         keep=non_max_suppression(results_box)
         for m in keep:
-            m=m.numpy()
             x,y,x2,y2=int(m[0]),int(m[1]),int(m[2]),int(m[3])
-            shapes.append((self.classes[int(m[5])], [(x, y), (x2, y), (x2, y2), (x, y2)], None, None, False, 0))
+            shapes.append((self.classes_list[int(m[5])], [(x, y), (x2, y), (x2, y2), (x, y2)], None, None, False, 0))
 
         self.loadLabels(shapes)
         self.setDirty()

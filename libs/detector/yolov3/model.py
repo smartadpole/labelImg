@@ -18,11 +18,7 @@ import onnxruntime
 class YOLOv3(object):
     def __init__(self, file='./config/i18R/yolov3.onnx',class_sel=[]):
         self.classes = load_class_names("config/i18R/classes.names")
-
-        if len(class_sel)==0:
-            self.class_sel = self.classes
-        else:
-            self.class_sel=class_sel
+        self.class_sel = self.classes if len(class_sel)==0 else class_sel
 
         if os.path.isfile(file):
             self.session = onnxruntime.InferenceSession(file)
