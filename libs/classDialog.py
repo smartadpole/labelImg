@@ -30,7 +30,7 @@ class ClassDialog(QDialog):
             self.checkboxs[i] = QCheckBox(str(self.classDicts[text][i]))
             self.Checklayout.addWidget(self.checkboxs[i])
             
-        self.QComboBox.currentIndexChanged.connect(self.changed)
+        self.QComboBox.currentIndexChanged.connect(self.ComboBoxIndexChanged)
 
         self.buttonBox = bb = BB(BB.Ok | BB.Cancel, Qt.Horizontal, self)
         bb.button(BB.Ok).setIcon(newIcon('done'))
@@ -66,16 +66,16 @@ class ClassDialog(QDialog):
             self.move(cursor_pos)
         return self.classes if self.exec_() else None
 
-    def changed(self,index):
+    def ComboBoxIndexChanged(self,index):
         index_class = []
         key=list(self.classDicts.keys())[index-1]
         for i in range(len(self.checkboxs)):
             if self.checkboxs[i].isChecked():
                 index_class.append(self.classDicts[key][i])
         self.classes[key] = index_class
-        self.ComboBoxIndexChanged(index)
+        self.statusChanged(index)
 
-    def ComboBoxIndexChanged(self,index):
+    def statusChanged(self,index):
         text=self.QComboBox.itemText(index)
         self.checkboxs = self.classDicts[text].copy()
 
