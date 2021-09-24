@@ -12,9 +12,14 @@ from libs.detector.ssd.onnxmodel import ONNXModel
 from libs.detector.ssd.preprocess import pre_process
 from libs.detector.ssd.postprocess.ssd import PostProcessor_SSD
 from libs.detector.ssd.postprocess.ssd import THRESHOLD
+from libs.detector.yolov3.postprocess.postprocess import load_class_names
+
 
 class SSD(object):
-    def __init__(self, file='./config/cleaner/ssd.onnx'):
+    def __init__(self, file='./config/cleaner/ssd.onnx',class_sel=[]):
+        self.classes = load_class_names("config/cleaner/classes.names")
+        self.class_sel = self.classes if len(class_sel)==0 else class_sel
+
         if os.path.isfile(file):
             self.net = ONNXModel(file)
         else:
@@ -27,6 +32,7 @@ class SSD(object):
 
         # TODO : get rect
         shapes = []
+        results_box=[]
         for result in results_batch:
             if len(result) > 0:
                 result = result.tolist()
@@ -34,10 +40,10 @@ class SSD(object):
                     x, y, x2, y2, label, score = r
                     x, y, x2, y2, label = int(x) * ratio[0], int(y) * ratio[1], int(x2) * ratio[0], int(y2) * ratio[
                         1], int(label)
-                    if score < THRESHOLD[label] or label == 0:
+                    if int(label) > len(self.classes) - 1 or not self.classes[int(label)] in self.class_sel:
                         continue
 
                     shapes.append(
                         (class_names_4_detect[label - 1], [(x, y), (x2, y), (x2, y2), (x, y2)], None, None, False))
-
-        return shapes
+                    results_box.append([x, y, x2, y2, score, self.classes[label]])
+        return shapes,results_box
