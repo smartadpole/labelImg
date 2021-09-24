@@ -14,10 +14,11 @@ from libs.detector.yolov3.postprocess.postprocess import IMAGE_SIZE_YOLOV3, THRE
     load_class_names,plot_boxes_cv2
 import cv2
 import onnxruntime
+CURRENT_DIR = os.path.abspath(os.path.dirname(__file__)).split('libs')[0]
 
 class YOLOv3(object):
     def __init__(self, file='./config/i18R/yolov3.onnx',class_sel=[]):
-        self.classes = load_class_names("config/i18R/classes.names")
+        self.classes = load_class_names(CURRENT_DIR+"config/i18R/classes.names")
         self.class_sel = self.classes if len(class_sel)==0 else class_sel
 
         if os.path.isfile(file):

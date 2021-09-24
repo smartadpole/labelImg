@@ -14,10 +14,11 @@ from libs.detector.yolov5.preprocess import pre_process as yoloPreProcess
 from libs.detector.yolov5.postprocess.postprocess import PostProcessor_YOLOV5
 from libs.detector.yolov5.postprocess.postprocess import IMAGE_SIZE_YOLOV5, THRESHOLD_YOLOV5
 import cv2
+CURRENT_DIR = os.path.abspath(os.path.dirname(__file__)).split('libs')[0]
 
 class YOLOv5(object):
     def __init__(self, file='./config/human/yolov5.onnx',class_sel=[]):
-        self.classes = load_class_names("config/human/classes.names")
+        self.classes = load_class_names(CURRENT_DIR + "config/human/classes.names")
         self.class_sel = self.classes if len(class_sel)==0 else class_sel
 
         if os.path.isfile(file):
