@@ -1714,7 +1714,7 @@ class MainWindow(QMainWindow, WindowMixin):
         self.classes_list=[]
         for i in range(len(self.theseModels)):
             if self.theseModels[i]:
-                classes = load_class_names(os.path.split(MODEL_PATH[MODEL_PARAMS[i]])[0]+'/classes.names')
+                classes = load_class_names(os.path.join(CURRENT_DIR,os.path.split(MODEL_PATH[MODEL_PARAMS[i]])[0]+'/classes.names'))
                 self.classes[MODEL_PARAMS[i]] = [i for i in classes if i not in self.classes]
 
         for m in self.classes.values():
