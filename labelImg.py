@@ -70,10 +70,11 @@ from libs.detector.yolov3.postprocess.postprocess import load_class_names, non_m
 
 
 onnxModelIndex = 0
-MODEL_PARAMS = {0: "_SSD", 1: "_CENTER_NET", 2: "_YOLOv5", 3: "_YOLOv3"}  # TODO models later should be added here
+MODEL_PARAMS = {0: "_SSD", 1: "_CENTER_NET", 2: "_YOLOv5", 3: "_YOLOv5s", 4: "_YOLOv3"}  # TODO models later should be added here
 MODEL_PATH = {"_SSD": "config/cleaner/ssd.onnx",
               "_CENTER_NET": "config/human/centernet.onnx",
               "_YOLOv5": "config/human/yolov5.onnx",
+              "_YOLOv5s": "config/human/yolov5s.onnx",
               "_YOLOv3": "config/i18R/yolov3.onnx"}
 MAX_IOU_FOR_DELETE = 0.6
 ADD_RECTBOX_BY_SERIES_NUM = 10
@@ -509,13 +510,19 @@ class MainWindow(QMainWindow, WindowMixin):
         self.model2.setChecked(False)
         self.model2.triggered.connect(self.changeStatusModel2)
 
-        self.YOLOv3=None
-        self.model3 = QAction("YOLOv3", self)
+        self.YOLOv5s=None
+        self.model3 = QAction("YOLOv5s", self)
         self.model3.setCheckable(True)
         self.model3.setChecked(False)
         self.model3.triggered.connect(self.changeStatusModel3)
 
-        addActions(self.menus.models, (self.model0, self.model1, self.model2, self.model3))
+        self.YOLOv3 = None
+        self.model4 = QAction("YOLOv3", self)
+        self.model4.setCheckable(True)
+        self.model4.setChecked(False)
+        self.model4.triggered.connect(self.changeStatusModel4)
+
+        addActions(self.menus.models, (self.model0, self.model1, self.model2, self.model3, self.model4))
 
         addActions(self.menus.file,
                    (open, opendir, copyPrevBounding, changeSavedir, openAnnotation, self.menus.recentFiles, save, save_format, saveAs, close, resetAll, deleteImg, quit))
@@ -629,7 +636,7 @@ class MainWindow(QMainWindow, WindowMixin):
             self.openDirDialog(dirpath=self.filePath, silent=True)
 
         # Models to be used to inference are controlled in this dict
-        self.theseModels = {0: False, 1: True, 2: False, 3: False}    # by default, CenterNet is used for inference
+        self.theseModels = {0: False, 1: True, 2: False, 3: False, 4: False}    # by default, CenterNet is used for inference
 
 
     def _loadClassNames4Detect(self):
@@ -826,10 +833,19 @@ class MainWindow(QMainWindow, WindowMixin):
             self.theseModels[onnxModelIndex] = False
 
     def changeStatusModel3(self):
-        # YOLOv3
+        # YOLOv5s
         global onnxModelIndex
         onnxModelIndex = 3
         if self.model3.isChecked():
+            self.theseModels[onnxModelIndex] = True
+        else:
+            self.theseModels[onnxModelIndex] = False
+
+    def changeStatusModel4(self):
+        # YOLOv3
+        global onnxModelIndex
+        onnxModelIndex = 4
+        if self.model4.isChecked():
             self.theseModels[onnxModelIndex] = True
         else:
             self.theseModels[onnxModelIndex] = False
@@ -1717,8 +1733,10 @@ class MainWindow(QMainWindow, WindowMixin):
                     self.centerNet = CenterNet(os.path.join(CURRENT_DIR, MODEL_PATH[MODEL_PARAMS[1]]), [])
                 if self.theseModels[2] and self.YOLOv5 is None:
                     self.YOLOv5 = YOLOv5(os.path.join(CURRENT_DIR, MODEL_PATH[MODEL_PARAMS[2]]), [])
-                if self.theseModels[3] and self.YOLOv3 is None:
-                    self.YOLOv3 = YOLOv3(os.path.join(CURRENT_DIR, MODEL_PATH[MODEL_PARAMS[3]]), [])
+                if self.theseModels[3] and self.YOLOv5s is None:
+                    self.YOLOv5s = YOLOv5(os.path.join(CURRENT_DIR, MODEL_PATH[MODEL_PARAMS[3]]), [])
+                if self.theseModels[4] and self.YOLOv3 is None:
+                    self.YOLOv3 = YOLOv3(os.path.join(CURRENT_DIR, MODEL_PATH[MODEL_PARAMS[4]]), [])
                 self.auto()
             else:
                 return
@@ -1737,8 +1755,10 @@ class MainWindow(QMainWindow, WindowMixin):
                         self.centerNet = CenterNet(os.path.join(CURRENT_DIR, MODEL_PATH[MODEL_PARAMS[1]]), class_sel[MODEL_PARAMS[1]])
                     if self.theseModels[2] and self.YOLOv5 is None:
                         self.YOLOv5 = YOLOv5(os.path.join(CURRENT_DIR, MODEL_PATH[MODEL_PARAMS[2]]), class_sel[MODEL_PARAMS[2]])
-                    if self.theseModels[3] and self.YOLOv3 is None:
-                        self.YOLOv3 = YOLOv3(os.path.join(CURRENT_DIR, MODEL_PATH[MODEL_PARAMS[3]]), class_sel[MODEL_PARAMS[3]])
+                    if self.theseModels[3] and self.YOLOv5s is None:
+                        self.YOLOv5s = YOLOv5(os.path.join(CURRENT_DIR, MODEL_PATH[MODEL_PARAMS[3]]), class_sel[MODEL_PARAMS[3]])
+                    if self.theseModels[4] and self.YOLOv3 is None:
+                        self.YOLOv3 = YOLOv3(os.path.join(CURRENT_DIR, MODEL_PATH[MODEL_PARAMS[4]]), class_sel[MODEL_PARAMS[4]])
 
                     self.timer4autolabel.start(20)
                     self.timer4autolabel.timeout.connect(self.autoThreadFunc)
@@ -1789,6 +1809,9 @@ class MainWindow(QMainWindow, WindowMixin):
 
     def autoLabel_YOLOv5(self):
         return self.YOLOv5.forward(self._loadImage4Detect())
+        # return self.YOLOv5.forward(cv2.imread(self.filePath))
+    def autoLabel_YOLOv5s(self):
+        return self.YOLOv5s.forward(self._loadImage4Detect())
         # return self.YOLOv5.forward(cv2.imread(self.filePath))
 
     def autoLabel_YOLOv3(self):
