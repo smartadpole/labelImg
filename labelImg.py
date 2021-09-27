@@ -1715,7 +1715,7 @@ class MainWindow(QMainWindow, WindowMixin):
         for i in range(len(self.theseModels)):
             if self.theseModels[i]:
                 classes = load_class_names(os.path.join(CURRENT_DIR,os.path.split(MODEL_PATH[MODEL_PARAMS[i]])[0]+'/classes.names'))
-                self.classes[MODEL_PARAMS[i]] = [i for i in classes if i not in self.classes]
+                self.classes[MODEL_PARAMS[i]] = [i for i in classes]
 
         for m in self.classes.values():
             for n in m:
@@ -1728,15 +1728,30 @@ class MainWindow(QMainWindow, WindowMixin):
             # if not in the fullyAutoMode
             if is_onnxok:
                 if self.theseModels[0] and self.SSD is None:
-                    self.SSD = SSD(os.path.join(CURRENT_DIR, MODEL_PATH[MODEL_PARAMS[0]]), [])
+                    self.SSD = SSD(os.path.join(CURRENT_DIR, MODEL_PATH[MODEL_PARAMS[0]]),
+                                   self.classes[MODEL_PARAMS[0]])
+                elif self.theseModels[0]:self.SSD.class_sel = self.classes[MODEL_PARAMS[0]]
+
                 if self.theseModels[1] and self.centerNet is None:
-                    self.centerNet = CenterNet(os.path.join(CURRENT_DIR, MODEL_PATH[MODEL_PARAMS[1]]), [])
+                    self.centerNet = CenterNet(os.path.join(CURRENT_DIR, MODEL_PATH[MODEL_PARAMS[1]]),
+                                               self.classes[MODEL_PARAMS[1]])
+                elif self.theseModels[1]:self.centerNet.class_sel = self.classes[MODEL_PARAMS[1]]
+
                 if self.theseModels[2] and self.YOLOv5 is None:
-                    self.YOLOv5 = YOLOv5(os.path.join(CURRENT_DIR, MODEL_PATH[MODEL_PARAMS[2]]), [])
+
+                    self.YOLOv5 = YOLOv5(os.path.join(CURRENT_DIR, MODEL_PATH[MODEL_PARAMS[2]]),
+                                         self.classes[MODEL_PARAMS[2]])
+                elif self.theseModels[2]:self.YOLOv5.class_sel = self.classes[MODEL_PARAMS[2]]
+
                 if self.theseModels[3] and self.YOLOv5s is None:
-                    self.YOLOv5s = YOLOv5(os.path.join(CURRENT_DIR, MODEL_PATH[MODEL_PARAMS[3]]), [])
+                    self.YOLOv5s = YOLOv5(os.path.join(CURRENT_DIR, MODEL_PATH[MODEL_PARAMS[3]]),
+                                          self.classes[MODEL_PARAMS[3]])
+                elif self.theseModels[3]:self.YOLOv5s.class_sel= self.classes[MODEL_PARAMS[3]]
+
                 if self.theseModels[4] and self.YOLOv3 is None:
-                    self.YOLOv3 = YOLOv3(os.path.join(CURRENT_DIR, MODEL_PATH[MODEL_PARAMS[4]]), [])
+                    self.YOLOv3 = YOLOv3(os.path.join(CURRENT_DIR, MODEL_PATH[MODEL_PARAMS[4]]),
+                                         self.classes[MODEL_PARAMS[4]])
+                elif self.theseModels[4]:self.YOLOv3.class_sel = self.classes[MODEL_PARAMS[4]]
                 self.auto()
             else:
                 return
@@ -1750,15 +1765,30 @@ class MainWindow(QMainWindow, WindowMixin):
                 class_sel = ClassDialog(parent=self, classDicts=self.classes).popUp()
                 if class_sel is not None:
                     if self.theseModels[0] and self.SSD is None:
-                        self.SSD = SSD(os.path.join(CURRENT_DIR, MODEL_PATH[MODEL_PARAMS[0]]), class_sel[MODEL_PARAMS[0]])
+                        self.SSD = SSD(os.path.join(CURRENT_DIR, MODEL_PATH[MODEL_PARAMS[0]]),
+                                       class_sel[MODEL_PARAMS[0]])
+                    elif self.theseModels[0]:self.SSD.class_sel = class_sel[MODEL_PARAMS[0]]
+
                     if self.theseModels[1] and self.centerNet is None:
-                        self.centerNet = CenterNet(os.path.join(CURRENT_DIR, MODEL_PATH[MODEL_PARAMS[1]]), class_sel[MODEL_PARAMS[1]])
+                        self.centerNet = CenterNet(os.path.join(CURRENT_DIR, MODEL_PATH[MODEL_PARAMS[1]]),
+                                                   class_sel[MODEL_PARAMS[1]])
+                    elif self.theseModels[1]:self.centerNet.class_sel = class_sel[MODEL_PARAMS[1]]
+
                     if self.theseModels[2] and self.YOLOv5 is None:
-                        self.YOLOv5 = YOLOv5(os.path.join(CURRENT_DIR, MODEL_PATH[MODEL_PARAMS[2]]), class_sel[MODEL_PARAMS[2]])
+
+                        self.YOLOv5 = YOLOv5(os.path.join(CURRENT_DIR, MODEL_PATH[MODEL_PARAMS[2]]),
+                                             class_sel[MODEL_PARAMS[2]])
+                    elif self.theseModels[2]: self.YOLOv5.class_sel = class_sel[MODEL_PARAMS[2]]
+
                     if self.theseModels[3] and self.YOLOv5s is None:
-                        self.YOLOv5s = YOLOv5(os.path.join(CURRENT_DIR, MODEL_PATH[MODEL_PARAMS[3]]), class_sel[MODEL_PARAMS[3]])
+                        self.YOLOv5s = YOLOv5(os.path.join(CURRENT_DIR, MODEL_PATH[MODEL_PARAMS[3]]),
+                                              class_sel[MODEL_PARAMS[3]])
+                    elif self.theseModels[3]:self.YOLOv5.class_sel = class_sel[MODEL_PARAMS[3]]
+
                     if self.theseModels[4] and self.YOLOv3 is None:
-                        self.YOLOv3 = YOLOv3(os.path.join(CURRENT_DIR, MODEL_PATH[MODEL_PARAMS[4]]), class_sel[MODEL_PARAMS[4]])
+                        self.YOLOv3 = YOLOv3(os.path.join(CURRENT_DIR, MODEL_PATH[MODEL_PARAMS[4]]),
+                                             class_sel[MODEL_PARAMS[4]])
+                    elif self.theseModels[4]:self.YOLOv5.class_sel = class_sel[MODEL_PARAMS[4]]
 
                     self.timer4autolabel.start(20)
                     self.timer4autolabel.timeout.connect(self.autoThreadFunc)
@@ -1810,6 +1840,10 @@ class MainWindow(QMainWindow, WindowMixin):
     def autoLabel_YOLOv5(self):
         return self.YOLOv5.forward(self._loadImage4Detect())
         # return self.YOLOv5.forward(cv2.imread(self.filePath))
+    def autoLabel_YOLOv5s(self):
+        return self.YOLOv5s.forward(self._loadImage4Detect())
+        # return self.YOLOv5.forward(cv2.imread(self.filePath))
+
     def autoLabel_YOLOv5s(self):
         return self.YOLOv5s.forward(self._loadImage4Detect())
         # return self.YOLOv5.forward(cv2.imread(self.filePath))

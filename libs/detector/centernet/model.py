@@ -13,12 +13,12 @@ from libs.detector.centernet.preprocess import pre_process as centerNetPreProces
 from libs.detector.centernet.postprocess.postprocess import PostProcessor_CENTER_NET
 from libs.detector.centernet.postprocess.postprocess import CONFIDENCE_THRESHOLD, IMAGE_SIZE_CENTER_NET
 from libs.detector.yolov3.postprocess.postprocess import load_class_names
-
+CURRENT_DIR = os.path.abspath(os.path.dirname(__file__)).split('libs')[0]
 
 class CenterNet(object):
     def __init__(self, file='./config/human/centernet.onnx',class_sel=[]):
-        self.classes = load_class_names("config/human/classes.names")
-        self.class_sel = self.classes if len(class_sel)==0 else class_sel
+        self.classes = load_class_names(CURRENT_DIR+"config/human/classes.names")
+        self.class_sel = class_sel
 
         if os.path.isfile(file):
             self.net = ONNXModel(file)
@@ -40,7 +40,7 @@ class CenterNet(object):
                 for r in result:
                     x, y, x2, y2, score = r
                     label=0
-                    if int(label) > len(self.classes)-1 or not self.classes[int(label)] in self.class_sel:
+                    if int(label) > len(self.classes)-1 or self.classes[int(label)] not in self.class_sel:
                         continue
 
                     x, y, x2, y2, score = int(x), int(y), int(x2), int(y2), float(score)
