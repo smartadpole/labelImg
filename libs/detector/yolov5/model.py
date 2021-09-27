@@ -19,7 +19,7 @@ CURRENT_DIR = os.path.abspath(os.path.dirname(__file__)).split('libs')[0]
 class YOLOv5(object):
     def __init__(self, file='./config/human/yolov5.onnx',class_sel=[]):
         self.classes = load_class_names(CURRENT_DIR + "config/human/classes.names")
-        self.class_sel = self.classes if len(class_sel)==0 else class_sel
+        self.class_sel = class_sel
 
         if os.path.isfile(file):
             self.net = ONNXModel(file)
@@ -43,7 +43,7 @@ class YOLOv5(object):
                 result = [r for r in result if r[4] > THRESHOLD_YOLOV5]
                 for r in result:
                     x, y, x2, y2, score, label = r
-                    if int(label)>len(self.classes)-1 or not self.classes[int(label)] in self.class_sel:
+                    if int(label)>len(self.classes)-1 or self.classes[int(label)] not in self.class_sel:
                         continue
 
                     y = y / IMAGE_SIZE_YOLOV5 * oriY

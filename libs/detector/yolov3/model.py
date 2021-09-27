@@ -19,7 +19,7 @@ CURRENT_DIR = os.path.abspath(os.path.dirname(__file__)).split('libs')[0]
 class YOLOv3(object):
     def __init__(self, file='./config/i18R/yolov3.onnx',class_sel=[]):
         self.classes = load_class_names(CURRENT_DIR+"config/i18R/classes.names")
-        self.class_sel = self.classes if len(class_sel)==0 else class_sel
+        self.class_sel = class_sel
 
         if os.path.isfile(file):
             self.session = onnxruntime.InferenceSession(file)
@@ -46,7 +46,7 @@ class YOLOv3(object):
                 for r in result:
                     x, y, x2, y2, score, score1, label = r
 
-                    if int(label) > len(self.classes)-1 or not self.classes[int(label)] in self.class_sel:
+                    if int(label) > len(self.classes)-1 or self.classes[int(label)] not in self.class_sel:
                         continue
 
                     y = y * oriY
