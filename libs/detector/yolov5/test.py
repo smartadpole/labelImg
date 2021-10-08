@@ -23,7 +23,6 @@ from libs.detector.yolov5.postprocess.postprocess import IMAGE_SIZE_YOLOV5, THRE
 from libs.detector.yolov5.postprocess.postprocess import PostProcessor_YOLOV5
 from libs.detector.yolov5.preprocess import pre_process
 
-import torch
 
 CLASS_NAMES = [
     'background',

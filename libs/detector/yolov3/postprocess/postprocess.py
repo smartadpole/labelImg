@@ -17,8 +17,6 @@ import itertools
 import struct  # get_image_size
 import imghdr  # get_image_size
 
-import torch
-
 IMAGE_SIZE_YOLOV3 = 416
 THRESHOLD_YOLOV3 = 0.25
 
