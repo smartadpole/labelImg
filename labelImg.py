@@ -66,7 +66,7 @@ from libs.detector.ssd.model import SSD
 from libs.detector.centernet.model import CenterNet
 from libs.detector.yolov5.model import YOLOv5
 from libs.detector.yolov3.model import YOLOv3
-from libs.detector.yolov3.postprocess.postprocess import load_class_names, non_max_suppression
+from libs.detector.yolov3.postprocess.postprocess import load_class_names, weighted_nms
 
 
 onnxModelIndex = 0
@@ -1821,10 +1821,10 @@ class MainWindow(QMainWindow, WindowMixin):
                     results_box.append(j)
 
         results_box=np.array(results_box)
-        keep=non_max_suppression(results_box)
+        keep=weighted_nms(results_box)
         for m in keep:
             x,y,x2,y2=int(m[0]),int(m[1]),int(m[2]),int(m[3])
-            shapes.append((self.classes_list[int(m[5])], [(x, y), (x2, y), (x2, y2), (x, y2)], None, None, False, 0))
+            shapes.append((self.classes_list[int(m[4])], [(x, y), (x2, y), (x2, y2), (x, y2)], None, None, False, 0))
 
         self.loadLabels(shapes)
         self.setDirty()
