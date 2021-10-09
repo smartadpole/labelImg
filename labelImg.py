@@ -70,12 +70,12 @@ from libs.detector.yolov3.postprocess.postprocess import load_class_names, weigh
 
 
 onnxModelIndex = 0
-MODEL_PARAMS = {0: "_SSD", 1: "_CENTER_NET", 2: "_YOLOv5", 3: "_YOLOv5s", 4: "_YOLOv5X", 5: "_YOLOv3"}  # TODO models later should be added here
+MODEL_PARAMS = {0: "_SSD", 1: "_CENTER_NET", 2: "_YOLOv5", 3: "_YOLOv5s", 4: "_YOLOv5_i18R", 5: "_YOLOv3"}  # TODO models later should be added here
 MODEL_PATH = {"_SSD": "config/cleaner/ssd.onnx",
               "_CENTER_NET": "config/human/centernet.onnx",
               "_YOLOv5": "config/human/yolov5.onnx",
               "_YOLOv5s": "config/human/yolov5s.onnx",
-              "_YOLOv5X": "config/i18R/yolov5X.onnx",
+              "_YOLOv5_i18R": "config/i18R/yolov5X.onnx",
               "_YOLOv3": "config/i18R/yolov3.onnx"}
 MAX_IOU_FOR_DELETE = 0.6
 ADD_RECTBOX_BY_SERIES_NUM = 10
@@ -506,7 +506,7 @@ class MainWindow(QMainWindow, WindowMixin):
         self.model1.triggered.connect(self.changeStatusModel1)
 
         self.YOLOv5=None
-        self.model2 = QAction("YOLOv5_COCO", self)
+        self.model2 = QAction("YOLOv5_coco", self)
         self.model2.setCheckable(True)
         self.model2.setChecked(False)
         self.model2.triggered.connect(self.changeStatusModel2)
@@ -517,8 +517,8 @@ class MainWindow(QMainWindow, WindowMixin):
         self.model3.setChecked(False)
         self.model3.triggered.connect(self.changeStatusModel3)
 
-        self.YOLOv5X=None
-        self.model4 = QAction("YOLOv5X", self)
+        self.YOLOv5_i18R=None
+        self.model4 = QAction("YOLOv5_i18R", self)
         self.model4.setCheckable(True)
         self.model4.setChecked(False)
         self.model4.triggered.connect(self.changeStatusModel4)
@@ -849,7 +849,7 @@ class MainWindow(QMainWindow, WindowMixin):
             self.theseModels[onnxModelIndex] = False
 
     def changeStatusModel4(self):
-        # YOLOv5X
+        # YOLOv5_i18R
         global onnxModelIndex
         onnxModelIndex = 4
         if self.model4.isChecked():
@@ -1763,10 +1763,10 @@ class MainWindow(QMainWindow, WindowMixin):
                                           self.classes[MODEL_PARAMS[3]])
                 elif self.theseModels[3]:self.YOLOv5s.class_sel= self.classes[MODEL_PARAMS[3]]
 
-                if self.theseModels[4] and self.YOLOv5X is None:
-                    self.YOLOv5X = YOLOv5(os.path.join(CURRENT_DIR, MODEL_PATH[MODEL_PARAMS[4]]),
+                if self.theseModels[4] and self.YOLOv5_i18R is None:
+                    self.YOLOv5_i18R = YOLOv5(os.path.join(CURRENT_DIR, MODEL_PATH[MODEL_PARAMS[4]]),
                                           self.classes[MODEL_PARAMS[4]])
-                elif self.theseModels[4]:self.YOLOv5X.class_sel= self.classes[MODEL_PARAMS[4]]
+                elif self.theseModels[4]:self.YOLOv5_i18R.class_sel= self.classes[MODEL_PARAMS[4]]
 
                 if self.theseModels[5] and self.YOLOv3 is None:
                     self.YOLOv3 = YOLOv3(os.path.join(CURRENT_DIR, MODEL_PATH[MODEL_PARAMS[5]]),
@@ -1806,10 +1806,10 @@ class MainWindow(QMainWindow, WindowMixin):
                                               class_sel[MODEL_PARAMS[3]])
                     elif self.theseModels[3]:self.YOLOv5s.class_sel = class_sel[MODEL_PARAMS[3]]
 
-                    if self.theseModels[4] and self.YOLOv5X is None:
-                        self.YOLOv5X = YOLOv5(os.path.join(CURRENT_DIR, MODEL_PATH[MODEL_PARAMS[4]]),
+                    if self.theseModels[4] and self.YOLOv5_i18R is None:
+                        self.YOLOv5_i18R = YOLOv5(os.path.join(CURRENT_DIR, MODEL_PATH[MODEL_PARAMS[4]]),
                                               class_sel[MODEL_PARAMS[4]])
-                    elif self.theseModels[4]:self.YOLOv5X.class_sel = class_sel[MODEL_PARAMS[4]]
+                    elif self.theseModels[4]:self.YOLOv5_i18R.class_sel = class_sel[MODEL_PARAMS[4]]
 
                     if self.theseModels[5] and self.YOLOv3 is None:
                         self.YOLOv3 = YOLOv3(os.path.join(CURRENT_DIR, MODEL_PATH[MODEL_PARAMS[5]]),
@@ -1871,8 +1871,8 @@ class MainWindow(QMainWindow, WindowMixin):
         return self.YOLOv5s.forward(self._loadImage4Detect())
         # return self.YOLOv5.forward(cv2.imread(self.filePath))
 
-    def autoLabel_YOLOv5X(self):
-        return self.YOLOv5X.forward(self._loadImage4Detect())
+    def autoLabel_YOLOv5_i18R(self):
+        return self.YOLOv5_i18R.forward(self._loadImage4Detect())
         # return self.YOLOv5.forward(cv2.imread(self.filePath))
 
     def autoLabel_YOLOv3(self):
