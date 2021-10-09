@@ -165,7 +165,7 @@ def _make_grid(nx=20, ny=20):
 def sigmoid(x):
     return 1/(1+np.exp(-x))
 
-def PostProcessor_YOLOV5(x):
+def PostProcessor_YOLOV5(x,nums):
 
     grid = [np.zeros(1)] * 3  # init grid
     z = []  # inference output
@@ -188,7 +188,7 @@ def PostProcessor_YOLOV5(x):
         anchors = np.array(anchors)
         anchor_grid = anchors.copy().reshape(len(anchors), 1, -1, 1, 1, 2)
         y[..., 2:4] = (y[..., 2:4] * 2) ** 2 * anchor_grid[i]  # wh
-        z.append(y.reshape(bs, -1, 85))
+        z.append(y.reshape(bs, -1,nums))
 
     output = np.concatenate(z, 1)
     pred = non_max_suppression(output, 0.25, 0.45, classes=None, agnostic=False)

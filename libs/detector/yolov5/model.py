@@ -18,7 +18,8 @@ CURRENT_DIR = os.path.abspath(os.path.dirname(__file__)).split('libs')[0]
 
 class YOLOv5(object):
     def __init__(self, file='./config/human/yolov5.onnx',class_sel=[]):
-        self.classes = load_class_names(CURRENT_DIR + "config/human/classes.names")
+        class_path=os.path.split(file)[0]
+        self.classes = load_class_names(class_path + "/classes.names")
         self.class_sel = class_sel
 
         if os.path.isfile(file):
@@ -32,7 +33,7 @@ class YOLOv5(object):
         image = cv2.resize(image, (IMAGE_SIZE_YOLOV5, IMAGE_SIZE_YOLOV5))
         image = yoloPreProcess(image)
         out = self.net.forward(image)
-        results_batch = PostProcessor_YOLOV5(out)
+        results_batch = PostProcessor_YOLOV5(out,len(self.classes)+5)
 
         # TODO : get rect
         shapes = []
