@@ -12,6 +12,8 @@ import subprocess
 from functools import partial
 from collections import defaultdict
 
+from PyQt5 import QtGui
+
 CURRENT_DIR = os.path.dirname(__file__)
 
 try:
@@ -122,6 +124,7 @@ class MainWindow(QMainWindow, WindowMixin):
         self.setWindowTitle(__appname__)
 
         self.fullyAutoMode = False
+        self.EqualizeHist=False
         self.timer4autolabel = QTimer(self)
 
         self.class_name_file_4_detect = os.path.join(CURRENT_DIR, "config/human/classes.names")
@@ -488,6 +491,12 @@ class MainWindow(QMainWindow, WindowMixin):
         self.FullyAutoLabelOption.setChecked(False)
         self.FullyAutoLabelOption.triggered.connect(self.toggleFullyAutoLabel)
 
+        # Histogram Equalization
+        self.EqualizeHistOption = QAction("Histogram Equalization", self)
+        self.EqualizeHistOption.setCheckable(True)
+        self.EqualizeHistOption.setChecked(False)
+        self.EqualizeHistOption.triggered.connect(self.setEqualizeHist)
+
         # Models
         # self.SSD = QAction('SSD', self)
         # self.SSD.setCheckable(True)
@@ -539,6 +548,7 @@ class MainWindow(QMainWindow, WindowMixin):
             self.singleClassMode,
             self.displayLabelOption,
             self.FullyAutoLabelOption,
+            self.EqualizeHistOption,
             labels, advancedMode, None,
             hideAll, showAll, None,
             zoomIn, zoomOut, zoomOrg, None,
@@ -1405,6 +1415,21 @@ class MainWindow(QMainWindow, WindowMixin):
                 self.status("Error reading %s" % unicodeFilePath)
                 return False
             self.status("Loaded %s" % os.path.basename(unicodeFilePath))
+            if self.EqualizeHist:
+                size = image.size()
+                s=image.bits().asstring(size.width() * size.height() * image.depth() // 8)
+                image_arr = np.fromstring(s, dtype=np.uint8).reshape((size.height(), size.width(), image.depth() // 8))
+                # if image_arr.shape[2] == 3:
+                #     image_arr[:,:, 0]=cv2.equalizeHist(image_arr[:,:, 0])
+                #     image_arr[:,:, 1]=cv2.equalizeHist(image_arr[:,:, 1])
+                #     image_arr[:,:, 2]=cv2.equalizeHist(image_arr[:,:, 2])
+                #     image = QtGui.QImage(image_arr[:], image_arr.shape[1], image_arr.shape[0], image_arr.shape[1] * 3,
+                #                          QtGui.QImage.Format_RGB888)
+                # else:
+                image_arr = cv2.equalizeHist(image_arr[:,:,0])
+                image = QtGui.QImage(image_arr[:], image_arr.shape[1], image_arr.shape[0], image_arr.shape[1] * 1,
+                                         QtGui.QImage.Format_Indexed8)
+
             self.image = image
             self.filePath = unicodeFilePath
             self.canvas.loadPixmap(QPixmap.fromImage(image))
@@ -2128,6 +2153,15 @@ class MainWindow(QMainWindow, WindowMixin):
             # if this button is NOT checked
             autoLabel.setText("autoLabel")
             self.fullyAutoMode = False
+
+    def setEqualizeHist(self):
+        if self.EqualizeHistOption.isChecked():
+            # if this button is checked
+            self.EqualizeHist = True
+        else:
+            # if this button is NOT checked
+            self.EqualizeHist = False
+
 
     def toogleDrawSquare(self):
         self.canvas.setDrawingShapeToSquare(self.drawSquaresOption.isChecked())
