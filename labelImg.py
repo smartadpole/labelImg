@@ -495,7 +495,7 @@ class MainWindow(QMainWindow, WindowMixin):
         self.EqualizeHistOption = QAction("Histogram Equalization", self)
         self.EqualizeHistOption.setCheckable(True)
         self.EqualizeHistOption.setChecked(False)
-        self.EqualizeHistOption.triggered.connect(self.setEqualizeHist)
+        self.EqualizeHistOption.triggered.connect(self.setEqualizeHistStatus)
 
         # Models
         # self.SSD = QAction('SSD', self)
@@ -1416,19 +1416,7 @@ class MainWindow(QMainWindow, WindowMixin):
                 return False
             self.status("Loaded %s" % os.path.basename(unicodeFilePath))
             if self.EqualizeHist:
-                size = image.size()
-                s=image.bits().asstring(size.width() * size.height() * image.depth() // 8)
-                image_arr = np.fromstring(s, dtype=np.uint8).reshape((size.height(), size.width(), image.depth() // 8))
-                # if image_arr.shape[2] == 3:
-                #     image_arr[:,:, 0]=cv2.equalizeHist(image_arr[:,:, 0])
-                #     image_arr[:,:, 1]=cv2.equalizeHist(image_arr[:,:, 1])
-                #     image_arr[:,:, 2]=cv2.equalizeHist(image_arr[:,:, 2])
-                #     image = QtGui.QImage(image_arr[:], image_arr.shape[1], image_arr.shape[0], image_arr.shape[1] * 3,
-                #                          QtGui.QImage.Format_RGB888)
-                # else:
-                image_arr = cv2.equalizeHist(image_arr[:,:,0])
-                image = QtGui.QImage(image_arr[:], image_arr.shape[1], image_arr.shape[0], image_arr.shape[1] * 1,
-                                         QtGui.QImage.Format_Indexed8)
+                image=self.setEqualizeHist(image)
 
             self.image = image
             self.filePath = unicodeFilePath
@@ -2154,7 +2142,7 @@ class MainWindow(QMainWindow, WindowMixin):
             autoLabel.setText("autoLabel")
             self.fullyAutoMode = False
 
-    def setEqualizeHist(self):
+    def setEqualizeHistStatus(self):
         if self.EqualizeHistOption.isChecked():
             # if this button is checked
             self.EqualizeHist = True
@@ -2162,6 +2150,25 @@ class MainWindow(QMainWindow, WindowMixin):
             # if this button is NOT checked
             self.EqualizeHist = False
 
+    def setEqualizeHist(self,image):
+        size = image.size()
+        s = image.bits().asstring(size.width() * size.height() * image.depth() // 8)
+        img_arr = np.fromstring(s, dtype=np.uint8).reshape((size.height(), size.width(), image.depth() // 8))
+        if img_arr.shape[2] == 4:
+            B, G, R, t = cv2.split(img_arr)  # get single 8-bits channel
+            EB = cv2.equalizeHist(B)
+            EG = cv2.equalizeHist(G)
+            ER = cv2.equalizeHist(R)
+            img_arr = cv2.merge((ER, EG, EB))
+            image = QtGui.QImage(img_arr[:], img_arr.shape[1], img_arr.shape[0],
+                                 img_arr.shape[1] * img_arr.shape[2],
+                                 QtGui.QImage.Format_RGB888)
+        else:
+            img_arr = cv2.equalizeHist(img_arr[:, :, 0])
+            image = QtGui.QImage(img_arr[:], img_arr.shape[1], img_arr.shape[0],
+                                 img_arr.shape[1] * img_arr.shape[2],
+                                 QtGui.QImage.Format_Indexed8)
+        return image
 
     def toogleDrawSquare(self):
         self.canvas.setDrawingShapeToSquare(self.drawSquaresOption.isChecked())
