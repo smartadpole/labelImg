@@ -15,21 +15,25 @@ class ClassDialog(QDialog):
 
     def __init__(self, parent=None, classDicts=None):
         super(ClassDialog, self).__init__(parent)
-        self.classes={}
-        self.classDicts=classDicts
+
+        self.classes = {}
+        self.classDicts = classDicts
 
         layout = QHBoxLayout()
 
-        self.Checklayout = QVBoxLayout()
-        self.QComboBox=QComboBox()
+        self.Checklayout = QGridLayout()
+
+        self.QComboBox = QComboBox()
         self.QComboBox.addItems(list(self.classDicts.keys()))
 
-        text=self.QComboBox.itemText(0)
+        text = self.QComboBox.itemText(0)
         self.checkboxs = self.classDicts[text].copy()
+        b = -1
         for i in range(len(self.classDicts[text])):
+            if i % 8 == 0: b += 1
             self.checkboxs[i] = QCheckBox(str(self.classDicts[text][i]))
-            self.Checklayout.addWidget(self.checkboxs[i])
-            
+            self.Checklayout.addWidget(self.checkboxs[i], i % 8, b)
+
         self.QComboBox.currentIndexChanged.connect(self.ComboBoxIndexChanged)
 
         self.buttonBox = bb = BB(BB.Ok | BB.Cancel, Qt.Horizontal, self)
@@ -45,14 +49,14 @@ class ClassDialog(QDialog):
 
     def validate(self):
         index_class = []
-        key=list(self.classDicts.keys())[self.QComboBox.currentIndex()]
+        key = list(self.classDicts.keys())[self.QComboBox.currentIndex()]
         for i in range(len(self.checkboxs)):
             if self.checkboxs[i].isChecked():
                 index_class.append(self.classDicts[key][i])
         self.classes[key] = index_class
         self.accept()
 
-    def popUp(self,  move=True):
+    def popUp(self, move=True):
         if move:
             cursor_pos = QCursor.pos()
             parent_bottomRight = self.parentWidget().geometry()
@@ -66,25 +70,24 @@ class ClassDialog(QDialog):
             self.move(cursor_pos)
         return self.classes if self.exec_() else None
 
-    def ComboBoxIndexChanged(self,index):
+    def ComboBoxIndexChanged(self, index):
         index_class = []
-        key=list(self.classDicts.keys())[index-1]
+        key = list(self.classDicts.keys())[index - 1]
         for i in range(len(self.checkboxs)):
             if self.checkboxs[i].isChecked():
                 index_class.append(self.classDicts[key][i])
         self.classes[key] = index_class
         self.statusChanged(index)
 
-    def statusChanged(self,index):
-        text=self.QComboBox.itemText(index)
+    def statusChanged(self, index):
+        text = self.QComboBox.itemText(index)
         self.checkboxs = self.classDicts[text].copy()
 
         for i in range(self.Checklayout.count()):
             self.Checklayout.itemAt(i).widget().deleteLater()
 
+        b = -1
         for i in range(len(self.classDicts[text])):
+            if i % 8 == 0: b += 1
             self.checkboxs[i] = QCheckBox(str(self.classDicts[text][i]))
-            self.Checklayout.addWidget(self.checkboxs[i])
-
-
-
+            self.Checklayout.addWidget(self.checkboxs[i], i % 8, b)

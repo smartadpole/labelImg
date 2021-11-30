@@ -12,6 +12,8 @@ import subprocess
 from functools import partial
 from collections import defaultdict
 
+from PyQt5 import QtGui
+
 CURRENT_DIR = os.path.dirname(__file__)
 
 try:
@@ -66,15 +68,16 @@ from libs.detector.ssd.model import SSD
 from libs.detector.centernet.model import CenterNet
 from libs.detector.yolov5.model import YOLOv5
 from libs.detector.yolov3.model import YOLOv3
-from libs.detector.yolov3.postprocess.postprocess import load_class_names, non_max_suppression
+from libs.detector.yolov3.postprocess.postprocess import load_class_names, weighted_nms
 
 
 onnxModelIndex = 0
-MODEL_PARAMS = {0: "_SSD", 1: "_CENTER_NET", 2: "_YOLOv5", 3: "_YOLOv5s", 4: "_YOLOv3"}  # TODO models later should be added here
+MODEL_PARAMS = {0: "_SSD", 1: "_CENTER_NET", 2: "_YOLOv5", 3: "_YOLOv5s", 4: "_YOLOv5_i18R", 5: "_YOLOv3"}  # TODO models later should be added here
 MODEL_PATH = {"_SSD": "config/cleaner/ssd.onnx",
               "_CENTER_NET": "config/human/centernet.onnx",
               "_YOLOv5": "config/human/yolov5.onnx",
               "_YOLOv5s": "config/human/yolov5s.onnx",
+              "_YOLOv5_i18R": "config/i18R/yolov5X.onnx",
               "_YOLOv3": "config/i18R/yolov3.onnx"}
 MAX_IOU_FOR_DELETE = 0.6
 ADD_RECTBOX_BY_SERIES_NUM = 10
@@ -121,6 +124,7 @@ class MainWindow(QMainWindow, WindowMixin):
         self.setWindowTitle(__appname__)
 
         self.fullyAutoMode = False
+        self.EqualizeHist=False
         self.timer4autolabel = QTimer(self)
 
         self.class_name_file_4_detect = os.path.join(CURRENT_DIR, "config/human/classes.names")
@@ -487,6 +491,12 @@ class MainWindow(QMainWindow, WindowMixin):
         self.FullyAutoLabelOption.setChecked(False)
         self.FullyAutoLabelOption.triggered.connect(self.toggleFullyAutoLabel)
 
+        # Histogram Equalization
+        self.EqualizeHistOption = QAction("Histogram Equalization", self)
+        self.EqualizeHistOption.setCheckable(True)
+        self.EqualizeHistOption.setChecked(False)
+        self.EqualizeHistOption.triggered.connect(self.setEqualizeHistStatus)
+
         # Models
         # self.SSD = QAction('SSD', self)
         # self.SSD.setCheckable(True)
@@ -505,7 +515,7 @@ class MainWindow(QMainWindow, WindowMixin):
         self.model1.triggered.connect(self.changeStatusModel1)
 
         self.YOLOv5=None
-        self.model2 = QAction("YOLOv5", self)
+        self.model2 = QAction("YOLOv5_coco", self)
         self.model2.setCheckable(True)
         self.model2.setChecked(False)
         self.model2.triggered.connect(self.changeStatusModel2)
@@ -516,13 +526,19 @@ class MainWindow(QMainWindow, WindowMixin):
         self.model3.setChecked(False)
         self.model3.triggered.connect(self.changeStatusModel3)
 
-        self.YOLOv3 = None
-        self.model4 = QAction("YOLOv3", self)
+        self.YOLOv5_i18R=None
+        self.model4 = QAction("YOLOv5_i18R", self)
         self.model4.setCheckable(True)
         self.model4.setChecked(False)
         self.model4.triggered.connect(self.changeStatusModel4)
 
-        addActions(self.menus.models, (self.model0, self.model1, self.model2, self.model3, self.model4))
+        self.YOLOv3 = None
+        self.model5 = QAction("YOLOv3", self)
+        self.model5.setCheckable(True)
+        self.model5.setChecked(False)
+        self.model5.triggered.connect(self.changeStatusModel5)
+
+        addActions(self.menus.models, (self.model0, self.model1, self.model2, self.model3, self.model4,self.model5))
 
         addActions(self.menus.file,
                    (open, opendir, copyPrevBounding, changeSavedir, openAnnotation, self.menus.recentFiles, save, save_format, saveAs, close, resetAll, deleteImg, quit))
@@ -532,6 +548,7 @@ class MainWindow(QMainWindow, WindowMixin):
             self.singleClassMode,
             self.displayLabelOption,
             self.FullyAutoLabelOption,
+            self.EqualizeHistOption,
             labels, advancedMode, None,
             hideAll, showAll, None,
             zoomIn, zoomOut, zoomOrg, None,
@@ -636,7 +653,7 @@ class MainWindow(QMainWindow, WindowMixin):
             self.openDirDialog(dirpath=self.filePath, silent=True)
 
         # Models to be used to inference are controlled in this dict
-        self.theseModels = {0: False, 1: True, 2: False, 3: False, 4: False}    # by default, CenterNet is used for inference
+        self.theseModels = {0: False, 1: True, 2: False, 3: False, 4: False, 5: False}    # by default, CenterNet is used for inference
 
 
     def _loadClassNames4Detect(self):
@@ -842,10 +859,19 @@ class MainWindow(QMainWindow, WindowMixin):
             self.theseModels[onnxModelIndex] = False
 
     def changeStatusModel4(self):
-        # YOLOv3
+        # YOLOv5_i18R
         global onnxModelIndex
         onnxModelIndex = 4
         if self.model4.isChecked():
+            self.theseModels[onnxModelIndex] = True
+        else:
+            self.theseModels[onnxModelIndex] = False
+
+    def changeStatusModel5(self):
+        # YOLOv3
+        global onnxModelIndex
+        onnxModelIndex = 5
+        if self.model5.isChecked():
             self.theseModels[onnxModelIndex] = True
         else:
             self.theseModels[onnxModelIndex] = False
@@ -1389,6 +1415,9 @@ class MainWindow(QMainWindow, WindowMixin):
                 self.status("Error reading %s" % unicodeFilePath)
                 return False
             self.status("Loaded %s" % os.path.basename(unicodeFilePath))
+            if self.EqualizeHist:
+                image=self.setEqualizeHist(image)
+
             self.image = image
             self.filePath = unicodeFilePath
             self.canvas.loadPixmap(QPixmap.fromImage(image))
@@ -1748,10 +1777,17 @@ class MainWindow(QMainWindow, WindowMixin):
                                           self.classes[MODEL_PARAMS[3]])
                 elif self.theseModels[3]:self.YOLOv5s.class_sel= self.classes[MODEL_PARAMS[3]]
 
-                if self.theseModels[4] and self.YOLOv3 is None:
-                    self.YOLOv3 = YOLOv3(os.path.join(CURRENT_DIR, MODEL_PATH[MODEL_PARAMS[4]]),
-                                         self.classes[MODEL_PARAMS[4]])
-                elif self.theseModels[4]:self.YOLOv3.class_sel = self.classes[MODEL_PARAMS[4]]
+                if self.theseModels[4] and self.YOLOv5_i18R is None:
+                    self.YOLOv5_i18R = YOLOv5(os.path.join(CURRENT_DIR, MODEL_PATH[MODEL_PARAMS[4]]),
+                                          self.classes[MODEL_PARAMS[4]])
+                elif self.theseModels[4]:self.YOLOv5_i18R.class_sel= self.classes[MODEL_PARAMS[4]]
+
+                if self.theseModels[5] and self.YOLOv3 is None:
+                    self.YOLOv3 = YOLOv3(os.path.join(CURRENT_DIR, MODEL_PATH[MODEL_PARAMS[5]]),
+                                         self.classes[MODEL_PARAMS[5]])
+                elif self.theseModels[5]:self.YOLOv3.class_sel = self.classes[MODEL_PARAMS[5]]
+
+
                 self.auto()
             else:
                 return
@@ -1783,12 +1819,17 @@ class MainWindow(QMainWindow, WindowMixin):
                     if self.theseModels[3] and self.YOLOv5s is None:
                         self.YOLOv5s = YOLOv5(os.path.join(CURRENT_DIR, MODEL_PATH[MODEL_PARAMS[3]]),
                                               class_sel[MODEL_PARAMS[3]])
-                    elif self.theseModels[3]:self.YOLOv5.class_sel = class_sel[MODEL_PARAMS[3]]
+                    elif self.theseModels[3]:self.YOLOv5s.class_sel = class_sel[MODEL_PARAMS[3]]
 
-                    if self.theseModels[4] and self.YOLOv3 is None:
-                        self.YOLOv3 = YOLOv3(os.path.join(CURRENT_DIR, MODEL_PATH[MODEL_PARAMS[4]]),
-                                             class_sel[MODEL_PARAMS[4]])
-                    elif self.theseModels[4]:self.YOLOv5.class_sel = class_sel[MODEL_PARAMS[4]]
+                    if self.theseModels[4] and self.YOLOv5_i18R is None:
+                        self.YOLOv5_i18R = YOLOv5(os.path.join(CURRENT_DIR, MODEL_PATH[MODEL_PARAMS[4]]),
+                                              class_sel[MODEL_PARAMS[4]])
+                    elif self.theseModels[4]:self.YOLOv5_i18R.class_sel = class_sel[MODEL_PARAMS[4]]
+
+                    if self.theseModels[5] and self.YOLOv3 is None:
+                        self.YOLOv3 = YOLOv3(os.path.join(CURRENT_DIR, MODEL_PATH[MODEL_PARAMS[5]]),
+                                             class_sel[MODEL_PARAMS[5]])
+                    elif self.theseModels[5]:self.YOLOv3.class_sel = class_sel[MODEL_PARAMS[5]]
 
                     self.timer4autolabel.start(20)
                     self.timer4autolabel.timeout.connect(self.autoThreadFunc)
@@ -1823,10 +1864,10 @@ class MainWindow(QMainWindow, WindowMixin):
                     results_box.append(j)
 
         results_box=np.array(results_box)
-        keep=non_max_suppression(results_box)
+        keep=weighted_nms(results_box)
         for m in keep:
             x,y,x2,y2=int(m[0]),int(m[1]),int(m[2]),int(m[3])
-            shapes.append((self.classes_list[int(m[5])], [(x, y), (x2, y), (x2, y2), (x, y2)], None, None, False, 0))
+            shapes.append((self.classes_list[int(m[4])], [(x, y), (x2, y), (x2, y2), (x, y2)], None, None, False, 0))
 
         self.loadLabels(shapes)
         self.setDirty()
@@ -1846,6 +1887,10 @@ class MainWindow(QMainWindow, WindowMixin):
 
     def autoLabel_YOLOv5s(self):
         return self.YOLOv5s.forward(self._loadImage4Detect())
+        # return self.YOLOv5.forward(cv2.imread(self.filePath))
+
+    def autoLabel_YOLOv5_i18R(self):
+        return self.YOLOv5_i18R.forward(self._loadImage4Detect())
         # return self.YOLOv5.forward(cv2.imread(self.filePath))
 
     def autoLabel_YOLOv3(self):
@@ -2101,6 +2146,34 @@ class MainWindow(QMainWindow, WindowMixin):
             # if this button is NOT checked
             autoLabel.setText("autoLabel")
             self.fullyAutoMode = False
+
+    def setEqualizeHistStatus(self):
+        if self.EqualizeHistOption.isChecked():
+            # if this button is checked
+            self.EqualizeHist = True
+        else:
+            # if this button is NOT checked
+            self.EqualizeHist = False
+
+    def setEqualizeHist(self,image):
+        size = image.size()
+        s = image.bits().asstring(size.width() * size.height() * image.depth() // 8)
+        img_arr = np.fromstring(s, dtype=np.uint8).reshape((size.height(), size.width(), image.depth() // 8))
+        if img_arr.shape[2] == 4:
+            B, G, R, t = cv2.split(img_arr)  # get single 8-bits channel
+            EB = cv2.equalizeHist(B)
+            EG = cv2.equalizeHist(G)
+            ER = cv2.equalizeHist(R)
+            img_arr = cv2.merge((ER, EG, EB))
+            image = QtGui.QImage(img_arr[:], img_arr.shape[1], img_arr.shape[0],
+                                 img_arr.shape[1] * img_arr.shape[2],
+                                 QtGui.QImage.Format_RGB888)
+        else:
+            img_arr = cv2.equalizeHist(img_arr[:, :, 0])
+            image = QtGui.QImage(img_arr[:], img_arr.shape[1], img_arr.shape[0],
+                                 img_arr.shape[1] * img_arr.shape[2],
+                                 QtGui.QImage.Format_Indexed8)
+        return image
 
     def toogleDrawSquare(self):
         self.canvas.setDrawingShapeToSquare(self.drawSquaresOption.isChecked())

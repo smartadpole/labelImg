@@ -17,10 +17,9 @@ import itertools
 import struct  # get_image_size
 import imghdr  # get_image_size
 
-import torch
+IMAGE_SIZE_YOLOV3 = 416
+THRESHOLD_YOLOV3 = 0.25
 
-IMAGE_SIZE_YOLOV3=416
-THRESHOLD_YOLOV3=0.25
 
 def sigmoid(x):
     return 1.0 / (np.exp(-x) + 1.)
@@ -107,125 +106,6 @@ def nms_cpu(boxes, confs, nms_thresh=0.5, min_mode=False):
 
     return np.array(keep)
 
-# def weighted_nms(dets, thresh=0.5):
-#     """
-#     Takes bounding boxes and scores and a threshold and applies
-#     weighted non-maximal suppression.
-#     """
-#     scores = dets[:,4]
-#     x1 = dets[:, 0]
-#     y1 = dets[:, 1]
-#     x2 = dets[:, 2]
-#     y2 = dets[:, 3]
-#
-#     areas = (x2 - x1) * (y2 - y1)
-#     order = scores.argsort()[::-1]
-#
-#     max_ids = []
-#     weighted_boxes = []
-#     while order.size > 0:
-#         i = order[0]
-#         max_ids.append(i)
-#         xx1 = np.maximum(x1[i], x1[order[:]])
-#         yy1 = np.maximum(y1[i], y1[order[:]])
-#         xx2 = np.minimum(x2[i], x2[order[:]])
-#         yy2 = np.minimum(y2[i], y2[order[:]])
-#
-#         w = np.maximum(0.0, xx2 - xx1)
-#         h = np.maximum(0.0, yy2 - yy1)
-#         inter = w * h
-#         iou = inter / (areas[i] + areas[order[:]] - inter)
-#
-#         in_inds = np.where(iou >= thresh)[0]
-#         in_dets = dets[in_inds, :]
-#
-#         weights = in_dets[:, 4] * iou[in_inds]
-#         wbox = np.sum((in_dets[:, :4] * weights[..., np.newaxis]), axis=0) \
-#             / np.sum(weights)
-#         weighted_boxes.append(wbox)
-#
-#         out_inds = np.where(iou < thresh)[0]
-#         order = order[out_inds]
-#         dets = dets[out_inds]
-#
-#     return max_ids, np.array(weighted_boxes)
-
-
-def bbox_iou1(box1, box2, x1y1x2y2=True):
-    """
-    Returns the IoU of two bounding boxes
-    """
-    if not x1y1x2y2:
-        # Transform from center and width to exact coordinates
-        b1_x1, b1_x2 = box1[:, 0] - box1[:, 2] / 2, box1[:, 0] + box1[:, 2] / 2
-        b1_y1, b1_y2 = box1[:, 1] - box1[:, 3] / 2, box1[:, 1] + box1[:, 3] / 2
-        b2_x1, b2_x2 = box2[:, 0] - box2[:, 2] / 2, box2[:, 0] + box2[:, 2] / 2
-        b2_y1, b2_y2 = box2[:, 1] - box2[:, 3] / 2, box2[:, 1] + box2[:, 3] / 2
-    else:
-        # Get the coordinates of bounding boxes
-        b1_x1, b1_y1, b1_x2, b1_y2 = box1[:, 0], box1[:, 1], box1[:, 2], box1[:, 3]
-        b2_x1, b2_y1, b2_x2, b2_y2 = box2[:, 0], box2[:, 1], box2[:, 2], box2[:, 3]
-
-    # get the corrdinates of the intersection rectangle
-    inter_rect_x1 = torch.max(b1_x1, b2_x1)
-    inter_rect_y1 = torch.max(b1_y1, b2_y1)
-    inter_rect_x2 = torch.min(b1_x2, b2_x2)
-    inter_rect_y2 = torch.min(b1_y2, b2_y2)
-    # Intersection area
-    inter_area = torch.clamp(inter_rect_x2 - inter_rect_x1 + 1, min=0) * torch.clamp(
-        inter_rect_y2 - inter_rect_y1 + 1, min=0
-    )
-    # Union Area
-    b1_area = (b1_x2 - b1_x1 + 1) * (b1_y2 - b1_y1 + 1)
-    b2_area = (b2_x2 - b2_x1 + 1) * (b2_y2 - b2_y1 + 1)
-
-    iou = inter_area / (b1_area + b2_area - inter_area + 1e-16)
-
-    return iou
-
-
-def non_max_suppression(prediction, conf_thres=0.25, nms_thres=0.4):
-    """
-    Removes detections with lower object confidence score than 'conf_thres' and performs
-    Non-Maximum Suppression to further filter detections.
-    Returns detections with shape:
-        (x1, y1, x2, y2, object_conf, class_score, class_pred)
-    """
-
-    # From (center x, center y, width, height) to (x1, y1, x2, y2)
-    if len(prediction.tolist())==0:
-        return prediction
-    prediction=torch.from_numpy(prediction)
-
-    output = [None for _ in range(len(prediction))]
-
-    # Filter out confidence scores below threshold
-    image_pred = prediction[prediction[:, 4] >= conf_thres]
-    # If none are remaining => process next image
-    # if not image_pred.size(0):
-    #     continue
-    # Object confidence times class confidence
-    # print(image_pred[:,5:])
-    # score = image_pred[:, 4] * image_pred[:, 5:].max(1)[0]
-    # # Sort by it
-    # image_pred = image_pred[(-score).argsort()]
-    # class_confs, class_preds = image_pred[:, 5],image_pred[:,6]
-    # image_pred=torch.tensor(image_pred,dtype=torch.float32)
-    detections = image_pred
-    # Perform non-maximum suppression
-    keep_boxes = []
-    while detections.size(0):
-        large_overlap = bbox_iou1(detections[0, :4].unsqueeze(0), detections[:, :4]) > nms_thres
-        label_match = detections[0, -1] == detections[:, -1]
-        # Indices of boxes with lower confidence scores, large IOUs and matching labels
-        invalid = large_overlap & label_match
-        weights = detections[invalid, 4:5]
-        # Merge overlapping bboxes by order of confidence
-        detections[0, :4] = (weights * detections[invalid, :4]).sum(0) / weights.sum()
-        keep_boxes += [detections[0].numpy()]
-        detections = detections[~invalid]
-    return keep_boxes
-
 
 def plot_boxes_cv2(img, boxes, savename=None, class_names=None, color=None):
     import cv2
@@ -291,6 +171,57 @@ def load_class_names(namesfile):
         line = line.rstrip()
         class_names.append(line)
     return class_names
+
+
+def weighted_nms(dets, nms_thres=0.45):
+    """
+    Takes bounding boxes and scores and a threshold and applies
+    weighted non-maximal suppression.
+    """
+    if len(dets.tolist()) == 0:
+        return dets
+    scores = dets[:, 4]
+    x1 = dets[:, 0]
+    y1 = dets[:, 1]
+    x2 = dets[:, 2]
+    y2 = dets[:, 3]
+
+    areas = (x2 - x1) * (y2 - y1)
+    order = scores.argsort()[::-1]
+    dets = dets[order]
+
+    max_ids = []
+    weighted_boxes = []
+    while order.size > 0:
+        i = order[0]
+        max_ids.append(i)
+        xx1 = np.maximum(x1[i], x1[order[:]])
+        yy1 = np.maximum(y1[i], y1[order[:]])
+        xx2 = np.minimum(x2[i], x2[order[:]])
+        yy2 = np.minimum(y2[i], y2[order[:]])
+
+        w = np.maximum(0.0, xx2 - xx1)
+        h = np.maximum(0.0, yy2 - yy1)
+        inter = w * h
+        iou = inter / (areas[i] + areas[order[:]] - inter)
+
+        in_inds = iou >= nms_thres
+        label_match = dets[order.tolist().index(i), -1] == dets[:, -1]
+        invalid = in_inds & label_match
+        in_dets = dets[invalid, :]
+
+        weights = in_dets[:, 4]
+        wbox = np.sum((in_dets[:, :4] * weights[..., np.newaxis]), axis=0) \
+               / np.sum(weights)
+
+        in_class = in_dets[0, 5]
+        wbox = np.append(wbox, in_class)
+        weighted_boxes.append(wbox)
+
+        order = order[~invalid]
+        dets = dets[~invalid]
+
+    return np.array(weighted_boxes)
 
 
 def post_processing(img, conf_thresh, nms_thresh, output):
