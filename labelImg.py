@@ -1151,7 +1151,7 @@ class MainWindow(QMainWindow, WindowMixin):
             else:
                 self.labelFile.save(annotationFilePath, shapes, self.filePath, self.imageData,
                                     self.lineColor.getRgb(), self.fillColor.getRgb())
-            print('Image:{0} -> Annotation:{1}'.format(self.filePath, annotationFilePath))
+            # print('Image:{0} -> Annotation:{1}'.format(self.filePath, annotationFilePath))
             return True
         except LabelFileError as e:
             self.errorMessage(u'Error saving label data', u'<b>%s</b>' % e)
@@ -2150,21 +2150,38 @@ class MainWindow(QMainWindow, WindowMixin):
             # if this button is NOT checked
             self.EqualizeHist = False
 
+    def preProcess(self, img):
+        # img = cv2.medianBlur(img, 3)
+        # img = cv2.bilateralFilter(img,5,75,75)
+        img = cv2.fastNlMeansDenoising(img, None, 5, 8, 25)
+
+        img =cv2.normalize(img,dst=None,alpha=350,beta=10,norm_type=cv2.NORM_MINMAX)
+
+        clahe = cv2.createCLAHE(3,(8,8))
+        img = clahe.apply(img)
+
+        return img
+
     def setEqualizeHist(self,image):
         size = image.size()
         s = image.bits().asstring(size.width() * size.height() * image.depth() // 8)
         img_arr = np.fromstring(s, dtype=np.uint8).reshape((size.height(), size.width(), image.depth() // 8))
-        if img_arr.shape[2] == 4:
-            B, G, R, t = cv2.split(img_arr)  # get single 8-bits channel
-            EB = cv2.equalizeHist(B)
-            EG = cv2.equalizeHist(G)
-            ER = cv2.equalizeHist(R)
+
+        if img_arr.shape[2] >= 3:
+            if img_arr.shape[2] == 3:
+                B, G, R = cv2.split(img_arr)  # get single 8-bits channel
+            elif img_arr.shape[2] == 4:
+                B, G, R, t = cv2.split(img_arr)  # get single 8-bits channel
+            EB = self.preProcess(B)
+            EG = self.preProcess(G)
+            ER = self.preProcess(R)
             img_arr = cv2.merge((ER, EG, EB))
             image = QtGui.QImage(img_arr[:], img_arr.shape[1], img_arr.shape[0],
                                  img_arr.shape[1] * img_arr.shape[2],
                                  QtGui.QImage.Format_RGB888)
-        else:
-            img_arr = cv2.equalizeHist(img_arr[:, :, 0])
+        elif img_arr.shape[2] == 1:
+            # img_arr = cv2.equalizeHist(img_arr[:, :, 0])
+            img_arr = self.preProcess(img_arr[:, :, 0])[::, ::, np.newaxis]
             image = QtGui.QImage(img_arr[:], img_arr.shape[1], img_arr.shape[0],
                                  img_arr.shape[1] * img_arr.shape[2],
                                  QtGui.QImage.Format_Indexed8)
