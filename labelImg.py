@@ -82,6 +82,7 @@ MODEL_PATH = {"_SSD": "config/cleaner/ssd.onnx",
 MAX_IOU_FOR_DELETE = 0.6
 ADD_RECTBOX_BY_SERIES_NUM = 10
 IOU_NMS = 0.5
+IMAGE_LIST_FILE =  "all.txt"
 # IMG_SIZE_DICT = {'IMAGE_SIZE'+MODEL_PARAMS[0]: 320,
 #                  'IMAGE_SIZE'+MODEL_PARAMS[1]: 320,
 #                  'IMAGE_SIZE'+MODEL_PARAMS[2]: 640,}
@@ -1620,7 +1621,12 @@ class MainWindow(QMainWindow, WindowMixin):
         self.dirname_len = len(self.dirname)
         self.filePath = None
         self.fileListWidget.clear()
-        self.mImgList = self.scanAllImages(dirpath)
+
+        image_list_file = os.path.join(dirpath, IMAGE_LIST_FILE)
+        if (os.path.exists(image_list_file)):
+            self.mImgList = [f.strip().strip('\n') for f in open(image_list_file).readlines()]
+        else:
+            self.mImgList = self.scanAllImages(dirpath)
         self.openNextImg()
         for imgPath in self.mImgList:
             item = QListWidgetItem(imgPath)
