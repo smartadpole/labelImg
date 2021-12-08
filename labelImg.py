@@ -2203,7 +2203,7 @@ class MainWindow(QMainWindow, WindowMixin):
         if hsv_image[:, :, 2].mean()>130:
             return image
 
-        max_percentile_pixel, min_percentile_pixel = self.compute(img, 1, 99)
+        max_percentile_pixel, min_percentile_pixel = self.compute(img, 1, 94)
 
         img[img >= max_percentile_pixel] = max_percentile_pixel
         img[img <= min_percentile_pixel] = min_percentile_pixel
