@@ -82,6 +82,7 @@ MODEL_PATH = {"_SSD": "config/cleaner/ssd.onnx",
 MAX_IOU_FOR_DELETE = 0.6
 ADD_RECTBOX_BY_SERIES_NUM = 10
 IOU_NMS = 0.5
+IMAGE_LIST_FILE =  "all.txt"
 # IMG_SIZE_DICT = {'IMAGE_SIZE'+MODEL_PARAMS[0]: 320,
 #                  'IMAGE_SIZE'+MODEL_PARAMS[1]: 320,
 #                  'IMAGE_SIZE'+MODEL_PARAMS[2]: 640,}
@@ -1151,7 +1152,7 @@ class MainWindow(QMainWindow, WindowMixin):
             else:
                 self.labelFile.save(annotationFilePath, shapes, self.filePath, self.imageData,
                                     self.lineColor.getRgb(), self.fillColor.getRgb())
-            print('Image:{0} -> Annotation:{1}'.format(self.filePath, annotationFilePath))
+            # print('Image:{0} -> Annotation:{1}'.format(self.filePath, annotationFilePath))
             return True
         except LabelFileError as e:
             self.errorMessage(u'Error saving label data', u'<b>%s</b>' % e)
@@ -1416,7 +1417,7 @@ class MainWindow(QMainWindow, WindowMixin):
                 return False
             self.status("Loaded %s" % os.path.basename(unicodeFilePath))
             if self.EqualizeHist:
-                image=self.setEqualizeHist(image)
+                image=self.setEqualizeHistNew(image)
 
             self.image = image
             self.filePath = unicodeFilePath
@@ -1620,7 +1621,12 @@ class MainWindow(QMainWindow, WindowMixin):
         self.dirname_len = len(self.dirname)
         self.filePath = None
         self.fileListWidget.clear()
-        self.mImgList = self.scanAllImages(dirpath)
+
+        image_list_file = os.path.join(dirpath, IMAGE_LIST_FILE)
+        if (os.path.exists(image_list_file)):
+            self.mImgList = [f.strip().strip('\n') for f in open(image_list_file).readlines()]
+        else:
+            self.mImgList = self.scanAllImages(dirpath)
         self.openNextImg()
         for imgPath in self.mImgList:
             item = QListWidgetItem(imgPath)
@@ -2155,24 +2161,64 @@ class MainWindow(QMainWindow, WindowMixin):
             # if this button is NOT checked
             self.EqualizeHist = False
 
+    def preProcess(self, img):
+        # img = cv2.medianBlur(img, 3)
+        # img = cv2.bilateralFilter(img,5,75,75)
+        img = cv2.fastNlMeansDenoising(img, None, 5, 8, 25)
+
+        img =cv2.normalize(img,dst=None,alpha=350,beta=10,norm_type=cv2.NORM_MINMAX)
+
+        clahe = cv2.createCLAHE(3,(8,8))
+        img = clahe.apply(img)
+
+        return img
+
     def setEqualizeHist(self,image):
         size = image.size()
         s = image.bits().asstring(size.width() * size.height() * image.depth() // 8)
         img_arr = np.fromstring(s, dtype=np.uint8).reshape((size.height(), size.width(), image.depth() // 8))
-        if img_arr.shape[2] == 4:
-            B, G, R, t = cv2.split(img_arr)  # get single 8-bits channel
-            EB = cv2.equalizeHist(B)
-            EG = cv2.equalizeHist(G)
-            ER = cv2.equalizeHist(R)
-            img_arr = cv2.merge((ER, EG, EB))
-            image = QtGui.QImage(img_arr[:], img_arr.shape[1], img_arr.shape[0],
-                                 img_arr.shape[1] * img_arr.shape[2],
-                                 QtGui.QImage.Format_RGB888)
-        else:
-            img_arr = cv2.equalizeHist(img_arr[:, :, 0])
-            image = QtGui.QImage(img_arr[:], img_arr.shape[1], img_arr.shape[0],
-                                 img_arr.shape[1] * img_arr.shape[2],
-                                 QtGui.QImage.Format_Indexed8)
+
+        B, G, R, t = cv2.split(img_arr)  # get single 8-bits channel
+        EB = self.preProcess(B)
+        EG = self.preProcess(G)
+        ER = self.preProcess(R)
+        img_arr = cv2.merge((ER, EG, EB))
+        image = QtGui.QImage(img_arr[:], img_arr.shape[1], img_arr.shape[0],
+                             img_arr.shape[1] * img_arr.shape[2],
+                             QtGui.QImage.Format_RGB888)
+
+        return image
+
+    def compute(self,img, min_percentile, max_percentile):
+
+        max_percentile_pixel = np.percentile(img, max_percentile)
+        min_percentile_pixel = np.percentile(img, min_percentile)
+
+        return max_percentile_pixel, min_percentile_pixel
+
+    def setEqualizeHistNew(self,image):
+        size = image.size()
+        s = image.bits().asstring(size.width() * size.height() * image.depth() // 8)
+        img_arr = np.fromstring(s, dtype=np.uint8).reshape((size.height(), size.width(), image.depth() // 8))
+
+        B, G, R, t = cv2.split(img_arr)  # get single 8-bits channel
+
+        img=cv2.merge((R,G,B))
+        hsv_image=cv2.cvtColor(img,cv2.COLOR_RGB2HSV)
+        if hsv_image[:, :, 2].mean()>130:
+            return image
+
+        max_percentile_pixel, min_percentile_pixel = self.compute(img, 1, 94)
+
+        img[img >= max_percentile_pixel] = max_percentile_pixel
+        img[img <= min_percentile_pixel] = min_percentile_pixel
+
+        out = np.zeros(img.shape, img.dtype)
+        cv2.normalize(img, out, 255 * 0.1, 255 * 0.9, cv2.NORM_MINMAX)
+        image = QtGui.QImage(out[:], out.shape[1], out.shape[0],
+                             out.shape[1] * out.shape[2],
+                             QtGui.QImage.Format_RGB888)
+
         return image
 
     def toogleDrawSquare(self):
