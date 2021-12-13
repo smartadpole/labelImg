@@ -136,6 +136,7 @@ class PascalVocReader:
         # shapes type:
         # [labbel, [(x1,y1), (x2,y2), (x3,y3), (x4,y4)], color, color, difficult]
         self.shapes = []
+        self.box = []
         self.filepath = filepath
         self.verified = False
         try:
@@ -177,4 +178,15 @@ class PascalVocReader:
             if object_iter.find('distance') is not None:
                 distance = int(int(object_iter.find('distance').text))
             self.addShape(label, bndbox, difficult, distance)
+            self.addBox(label, bndbox)
         return True
+
+    def addBox(self, label, bndbox):
+        xmin = int(float(bndbox.find('xmin').text))
+        ymin = int(float(bndbox.find('ymin').text))
+        xmax = int(float(bndbox.find('xmax').text))
+        ymax = int(float(bndbox.find('ymax').text))
+        self.box.append([xmin, ymin, xmax, ymax, 1, label])
+
+    def getBox(self):
+        return self.box

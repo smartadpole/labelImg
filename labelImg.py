@@ -68,7 +68,7 @@ from libs.detector.ssd.model import SSD
 from libs.detector.centernet.model import CenterNet
 from libs.detector.yolov5.model import YOLOv5
 from libs.detector.yolov3.model import YOLOv3
-from libs.detector.yolov3.postprocess.postprocess import load_class_names, weighted_nms
+from libs.detector.yolov3.postprocess.postprocess import load_class_names, weighted_nms, iou_drop
 
 
 onnxModelIndex = 0
@@ -155,6 +155,13 @@ class MainWindow(QMainWindow, WindowMixin):
 
         # Whether we need to save or not.
         self.dirty = False
+
+
+        # save tmp boxes
+        self.tmp_box = []
+        self.shapes = None
+        self.current_box = []
+        self.current_shapes = None
 
         self._noSelectionSlot = False
         self._beginner = True
@@ -1595,6 +1602,10 @@ class MainWindow(QMainWindow, WindowMixin):
             self.loadPascalXMLByFilename(filename)
 
     def openDirDialog(self, _value=False, dirpath=None, silent=False):
+        self.tmp_box = []
+        self.shapes = None
+        self.current_box = []
+        self.current_shapes = None
         if not self.mayContinue():
             return
 
@@ -1656,6 +1667,10 @@ class MainWindow(QMainWindow, WindowMixin):
 
     def openPrevImg(self, _value=False):
         # Proceding prev image without dialog if having any label
+        self.current_shapes = None
+        self.shapes = None
+        self.tmp_box = []
+        self.current_box = []
         if self.autoSaving.isChecked():
             if self.defaultSaveDir is not None:
                 if self.dirty is True:
@@ -1681,6 +1696,10 @@ class MainWindow(QMainWindow, WindowMixin):
 
     def openNextImg(self, _value=False):
         # Proceding prev image without dialog if having any label
+        self.current_shapes = None
+        self.shapes = None
+        self.tmp_box = []
+        self.current_box = []
         self.textDistance.setText("")
         if self.autoSaving.isChecked():
             if self.defaultSaveDir is not None:
@@ -1860,6 +1879,15 @@ class MainWindow(QMainWindow, WindowMixin):
             self.timer4autolabel.stop()
 
     def auto(self):
+        if not self.filePath is None:
+            self.saveFile()
+            imgFileName = self.filePath[self.dirname_len + 1:]
+            savedFileName = os.path.splitext(imgFileName)[0]
+            savedPath = os.path.join(ustr(self.defaultSaveDir), savedFileName)
+            savedPath = savedPath + '.xml'
+            self.autoLoadPascalXMLByFilename(savedPath)
+
+
         shapes = []
         results_box=[]
         for i in range(len(MODEL_PARAMS)):
@@ -1868,13 +1896,25 @@ class MainWindow(QMainWindow, WindowMixin):
                 for j in box:
                     j[5]=self.classes_list.index(j[5])
                     results_box.append(j)
+        ground_box = []
+        for index_box in self.tmp_box:
+            tmp_box = index_box.copy()
+            tmp_box[5] = self.classes_list.index(index_box[5])
+            # results_box.append(tmp_box)
+            ground_box.append(tmp_box[:4])
+        for index_box in self.current_box:
+            tmp_box = index_box.copy()
+            ground_box.append(tmp_box[:4])
 
         results_box=np.array(results_box)
         keep=weighted_nms(results_box)
-        for m in keep:
+        print(results_box)
+        keep_droped = iou_drop(keep, ground_box)
+        for m in keep_droped:
             x,y,x2,y2=int(m[0]),int(m[1]),int(m[2]),int(m[3])
+            self.current_box.append([x,y,x2,y2])
             shapes.append((self.classes_list[int(m[4])], [(x, y), (x2, y), (x2, y2), (x, y2)], None, None, False, 0))
-
+            self.shapes.append((self.classes_list[int(m[4])], [(x, y), (x2, y), (x2, y2), (x, y2)], None, None, False, 0))
         self.loadLabels(shapes)
         self.setDirty()
 
@@ -2008,6 +2048,7 @@ class MainWindow(QMainWindow, WindowMixin):
             self.setDirty()
 
     def deleteSelectedShape(self):
+        self.current_box = []
         self.remLabel(self.canvas.deleteSelected())
         self.setDirty()
         if self.noShapes():
@@ -2093,6 +2134,26 @@ class MainWindow(QMainWindow, WindowMixin):
                     else:
                         self.labelHist.append(line)
 
+    def autoLoadPascalXMLByFilename(self, xmlPath):
+        if self.filePath is None:
+            return
+        if os.path.isfile(xmlPath) is False:
+            return
+
+        self.set_format(FORMAT_PASCALVOC)
+        self.tmp_box = []
+        tVocParseReader = PascalVocReader(xmlPath)
+        if self.shapes is None:
+            self.shapes = tVocParseReader.getShapes()
+            self.loadLabels(self.shapes)
+            self.canvas.verified = tVocParseReader.verified
+        elif len(self.shapes) == 0:
+            self.shapes = tVocParseReader.getShapes()
+            self.loadLabels(self.shapes)
+            self.canvas.verified = tVocParseReader.verified
+        self.tmp_box = tVocParseReader.getBox()
+
+
     def loadPascalXMLByFilename(self, xmlPath):
         if self.filePath is None:
             return
@@ -2103,6 +2164,7 @@ class MainWindow(QMainWindow, WindowMixin):
 
         tVocParseReader = PascalVocReader(xmlPath)
         shapes = tVocParseReader.getShapes()
+        self.shapes = shapes.copy()
         self.loadLabels(shapes)
         self.canvas.verified = tVocParseReader.verified
 

@@ -224,6 +224,37 @@ def weighted_nms(dets, nms_thres=0.45):
     return np.array(weighted_boxes)
 
 
+def iou_drop(dets, ground_truths):
+    if len(ground_truths) == 0:
+        return dets
+    dets_drop_index = []
+    for index, index_det in enumerate(dets):
+        x_min, y_min, x_max, y_max = max(int(index_det[0]), 0), max(int(index_det[1]), 0), min(int(index_det[2]), 640), min(int(index_det[3]), 400)
+        for index_ground in ground_truths:
+            x_ground_min, y_ground_min, x_ground_max, y_ground_max = max(int(index_ground[0]), 0), max(int(index_ground[1]), 0), min(int(index_ground[2]), 640), min(
+                int(index_ground[3]), 400)
+            x_inter_min = max(x_min, x_ground_min)
+            y_inter_min = max(y_min, y_ground_min)
+            x_inter_max = min(x_max, x_ground_max)
+            y_inter_max = min(y_max, y_ground_max)
+            #
+            w = max(0.0, x_inter_max - x_inter_min)
+            h = max(0.0, y_inter_max - y_inter_min)
+            w_ground = max((x_ground_max - x_ground_min), 0.0)
+            h_ground = max((y_ground_max - y_ground_min), 0.0)
+            w_det = max((x_max - x_min), 0.0)
+            h_det = max((y_max - y_min), 0.0)
+
+            inter_area = w * h
+            det_area = w_det * h_det
+            iou = inter_area / (w_ground * h_ground)
+            if not((0 <= iou < 0.1) and not (inter_area == det_area)):
+                dets_drop_index.append(index)
+    droped_dets = np.delete(dets, dets_drop_index, axis=0)
+
+    return droped_dets
+
+
 def post_processing(img, conf_thresh, nms_thresh, output):
     # anchors = [12, 16, 19, 36, 40, 28, 36, 75, 76, 55, 72, 146, 142, 110, 192, 243, 459, 401]
     # num_anchors = 9
