@@ -2144,6 +2144,10 @@ class MainWindow(QMainWindow, WindowMixin):
             # if this button is NOT checked
             self.EqualizeHist = False
 
+        currIndex = self.mImgList.index(self.filePath)
+        filename = self.mImgList[currIndex]
+        self.loadFile(filename)
+
     def preProcess(self, img):
         # img = cv2.medianBlur(img, 3)
         # img = cv2.bilateralFilter(img,5,75,75)
@@ -2161,7 +2165,8 @@ class MainWindow(QMainWindow, WindowMixin):
         s = image.bits().asstring(size.width() * size.height() * image.depth() // 8)
         img_arr = np.fromstring(s, dtype=np.uint8).reshape((size.height(), size.width(), image.depth() // 8))
 
-        B, G, R, t = cv2.split(img_arr)  # get single 8-bits channel
+        img = self.toRGB(img_arr)
+        R, G, B = cv2.split(img)  # get single 8-bits channel
         EB = self.preProcess(B)
         EG = self.preProcess(G)
         ER = self.preProcess(R)
@@ -2179,14 +2184,25 @@ class MainWindow(QMainWindow, WindowMixin):
 
         return max_percentile_pixel, min_percentile_pixel
 
+    def toRGB(self, image):
+        if image.shape[2] >= 3:
+            if image.shape[2] == 3:
+                B, G, R = cv2.split(image)  # get single 8-bits channel
+                image = cv2.merge((R, G, B))
+            elif image.shape[2] == 4:
+                B, G, R, t = cv2.split(image)  # get single 8-bits channel
+                image = cv2.merge((R, G, B))
+        elif image.shape[2] == 1:
+            image = cv2.merge((image, image, image))
+
+        return image
+
     def setEqualizeHistNew(self,image):
         size = image.size()
         s = image.bits().asstring(size.width() * size.height() * image.depth() // 8)
         img_arr = np.fromstring(s, dtype=np.uint8).reshape((size.height(), size.width(), image.depth() // 8))
 
-        B, G, R, t = cv2.split(img_arr)  # get single 8-bits channel
-
-        img=cv2.merge((R,G,B))
+        img = self.toRGB(img_arr)  # get single 8-bits channel
         hsv_image=cv2.cvtColor(img,cv2.COLOR_RGB2HSV)
         if hsv_image[:, :, 2].mean()>130:
             return image
