@@ -36,7 +36,7 @@ from libs.resources import *
 from libs.constants import *
 from libs.utils import *
 from libs.settings import Settings
-from libs.shape import Shape, DEFAULT_LINE_COLOR, DEFAULT_FILL_COLOR
+from libs.shape import Shape, DEFAULT_LINE_COLOR, DEFAULT_FILL_COLOR, box2Shape
 from libs.stringBundle import StringBundle
 from libs.canvas import Canvas
 from libs.zoomWidget import ZoomWidget
@@ -1078,31 +1078,16 @@ class MainWindow(QMainWindow, WindowMixin):
     def loadLabels(self, shapes):
         s = []
         for label, points, line_color, fill_color, difficult, distance in shapes:
-            shape = Shape(label=label)
-            for x, y in points:
-
+            for i, (x, y) in enumerate(points):
                 # Ensure the labels are within the bounds of the image. If not, fix them.
                 x, y, snapped = self.canvas.snapPointToCanvas(x, y)
+                points[i] = (x, y)
                 if snapped:
                     self.setDirty()
-
-                shape.addPoint(QPointF(x, y))
-            shape.difficult = difficult
-            shape.distance = distance
-            shape.close()
+            shape = box2Shape(label, points, line_color, fill_color, difficult, distance)
             s.append(shape)
-
-            if line_color:
-                shape.line_color = QColor(*line_color)
-            else:
-                shape.line_color = generateColorByText(label)
-
-            if fill_color:
-                shape.fill_color = QColor(*fill_color)
-            else:
-                shape.fill_color = generateColorByText(label)
-
             self.addLabel(shape)
+
         self.updateComboBox()
 
         if len(self.canvas.shapes) > 0:
@@ -1868,10 +1853,13 @@ class MainWindow(QMainWindow, WindowMixin):
                     results_box.append(j)
 
         results_box=np.array(results_box)
-        keep=weighted_nms(results_box)
-        for m in keep:
-            x,y,x2,y2=int(m[0]),int(m[1]),int(m[2]),int(m[3])
-            shapes.append((self.classes_list[int(m[4])], [(x, y), (x2, y), (x2, y2), (x, y2)], None, None, False, 0))
+        box_nms=weighted_nms(results_box)
+        for box in box_nms:
+            x,y,x2,y2=int(box[0]),int(box[1]),int(box[2]),int(box[3])
+            item = (self.classes_list[int(box[4])], [(x, y), (x2, y), (x2, y2), (x, y2)], None, None, False, 0)
+            new_shape = box2Shape(*item)
+            if (self.shapeNMS(self.canvas.shapes, new_shape)):
+                shapes.append(item)
 
         self.loadLabels(shapes)
         self.setDirty()
