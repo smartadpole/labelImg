@@ -126,6 +126,7 @@ class MainWindow(QMainWindow, WindowMixin):
 
         self.fullyAutoMode = False
         self.EqualizeHist=False
+        self.denoise = False
         self.timer4autolabel = QTimer(self)
 
         self.class_name_file_4_detect = os.path.join(CURRENT_DIR, "config/human/classes.names")
@@ -492,6 +493,13 @@ class MainWindow(QMainWindow, WindowMixin):
         self.FullyAutoLabelOption.setChecked(False)
         self.FullyAutoLabelOption.triggered.connect(self.toggleFullyAutoLabel)
 
+
+        # denoise
+        self.denoiseOption = QAction("denoise by Gauss", self)
+        self.denoiseOption.setCheckable(True)
+        self.denoiseOption.setChecked(False)
+        self.denoiseOption.triggered.connect(self.toggleDenoise)
+
         # Histogram Equalization
         self.EqualizeHistOption = QAction("Histogram Equalization", self)
         self.EqualizeHistOption.setCheckable(True)
@@ -550,6 +558,7 @@ class MainWindow(QMainWindow, WindowMixin):
             self.displayLabelOption,
             self.FullyAutoLabelOption,
             self.EqualizeHistOption,
+            self.denoiseOption,
             labels, advancedMode, None,
             hideAll, showAll, None,
             zoomIn, zoomOut, zoomOrg, None,
@@ -1404,6 +1413,9 @@ class MainWindow(QMainWindow, WindowMixin):
             if self.EqualizeHist:
                 image=self.setEqualizeHistNew(image)
 
+            if self.denoise:
+                image = self.Denoise(image)
+
             self.image = image
             self.filePath = unicodeFilePath
             self.canvas.loadPixmap(QPixmap.fromImage(image))
@@ -2136,6 +2148,15 @@ class MainWindow(QMainWindow, WindowMixin):
             autoLabel.setText("autoLabel")
             self.fullyAutoMode = False
 
+    def reloadImage(self):
+        currIndex = self.mImgList.index(self.filePath)
+        filename = self.mImgList[currIndex]
+        self.loadFile(filename)
+
+    def toggleDenoise(self):
+        self.denoise = self.denoiseOption.isChecked()
+        self.reloadImage()
+
     def setEqualizeHistStatus(self):
         if self.EqualizeHistOption.isChecked():
             # if this button is checked
@@ -2144,9 +2165,7 @@ class MainWindow(QMainWindow, WindowMixin):
             # if this button is NOT checked
             self.EqualizeHist = False
 
-        currIndex = self.mImgList.index(self.filePath)
-        filename = self.mImgList[currIndex]
-        self.loadFile(filename)
+        self.reloadImage()
 
     def preProcess(self, img):
         # img = cv2.medianBlur(img, 3)
@@ -2214,6 +2233,25 @@ class MainWindow(QMainWindow, WindowMixin):
 
         out = np.zeros(img.shape, img.dtype)
         cv2.normalize(img, out, 255 * 0.1, 255 * 0.9, cv2.NORM_MINMAX)
+
+        out = cv2.GaussianBlur(out, (7, 7), 0)
+
+        image = QtGui.QImage(out[:], out.shape[1], out.shape[0],
+                             out.shape[1] * out.shape[2],
+                             QtGui.QImage.Format_RGB888)
+
+        return image
+
+
+    def Denoise(self, image):
+        size = image.size()
+        s = image.bits().asstring(size.width() * size.height() * image.depth() // 8)
+        img_arr = np.fromstring(s, dtype=np.uint8).reshape((size.height(), size.width(), image.depth() // 8))
+
+        img = self.toRGB(img_arr)  # get single 8-bits channel
+
+        out = cv2.GaussianBlur(img, (3, 3), 0)
+
         image = QtGui.QImage(out[:], out.shape[1], out.shape[0],
                              out.shape[1] * out.shape[2],
                              QtGui.QImage.Format_RGB888)
