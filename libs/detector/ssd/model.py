@@ -44,6 +44,6 @@ class SSD(object):
                     #     continue
 
                     shapes.append(
-                        ('person', [(x, y), (x2, y), (x2, y2), (x, y2)], None, None, False))
-                    results_box.append([x, y, x2, y2, score, 'person'])
+                        (self.classes[label], [(x, y), (x2, y), (x2, y2), (x, y2)], None, None, False))
+                    results_box.append([x, y, x2, y2, score, self.classes[label]])
         return shapes,results_box
