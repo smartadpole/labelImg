@@ -2196,9 +2196,13 @@ class MainWindow(QMainWindow, WindowMixin):
         s = image.bits().asstring(size.width() * size.height() * image.depth() // 8)
         img_arr = np.fromstring(s, dtype=np.uint8).reshape((size.height(), size.width(), image.depth() // 8))
 
-        B, G, R, t = cv2.split(img_arr)  # get single 8-bits channel
+        if img_arr.shape[-1] == 1:
+            img = cv2.cvtColor(img_arr,cv2.COLOR_GRAY2RGB)
 
-        img=cv2.merge((R,G,B))
+        else:
+            B, G, R, t = cv2.split(img_arr)  # get single 8-bits channel
+            img=cv2.merge((R,G,B))
+
         hsv_image=cv2.cvtColor(img,cv2.COLOR_RGB2HSV)
         if hsv_image[:, :, 2].mean()>130:
             return image
