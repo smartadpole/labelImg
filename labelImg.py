@@ -36,7 +36,7 @@ from libs.resources import *
 from libs.constants import *
 from libs.utils import *
 from libs.settings import Settings
-from libs.shape import Shape, DEFAULT_LINE_COLOR, DEFAULT_FILL_COLOR
+from libs.shape import Shape, DEFAULT_LINE_COLOR, DEFAULT_FILL_COLOR, box2Shape
 from libs.stringBundle import StringBundle
 from libs.canvas import Canvas
 from libs.zoomWidget import ZoomWidget
@@ -127,6 +127,7 @@ class MainWindow(QMainWindow, WindowMixin):
 
         self.fullyAutoMode = False
         self.EqualizeHist=False
+        self.denoise = False
         self.timer4autolabel = QTimer(self)
 
         self.class_name_file_4_detect = os.path.join(CURRENT_DIR, "config/human/classes.names")
@@ -500,6 +501,13 @@ class MainWindow(QMainWindow, WindowMixin):
         self.FullyAutoLabelOption.setChecked(False)
         self.FullyAutoLabelOption.triggered.connect(self.toggleFullyAutoLabel)
 
+
+        # denoise
+        self.denoiseOption = QAction("denoise by Gauss", self)
+        self.denoiseOption.setCheckable(True)
+        self.denoiseOption.setChecked(False)
+        self.denoiseOption.triggered.connect(self.toggleDenoise)
+
         # Histogram Equalization
         self.EqualizeHistOption = QAction("Histogram Equalization", self)
         self.EqualizeHistOption.setCheckable(True)
@@ -559,6 +567,7 @@ class MainWindow(QMainWindow, WindowMixin):
             self.displayScoreOption,
             self.FullyAutoLabelOption,
             self.EqualizeHistOption,
+            self.denoiseOption,
             labels, advancedMode, None,
             hideAll, showAll, None,
             zoomIn, zoomOut, zoomOrg, None,
@@ -1088,32 +1097,17 @@ class MainWindow(QMainWindow, WindowMixin):
     def loadLabels(self, shapes):
         s = []
         for label, points, line_color, fill_color, difficult, distance, score in shapes:
-            shape = Shape(label=label)
-            for x, y in points:
-
+            for i, (x, y) in enumerate(points):
                 # Ensure the labels are within the bounds of the image. If not, fix them.
                 x, y, snapped = self.canvas.snapPointToCanvas(x, y)
+                points[i] = (x, y)
                 if snapped:
                     self.setDirty()
 
-                shape.addPoint(QPointF(x, y))
-            shape.difficult = difficult
-            shape.distance = distance
-            shape.score = score
-            shape.close()
+            shape = box2Shape(label, points, line_color, fill_color, difficult, distance, score)
             s.append(shape)
-
-            if line_color:
-                shape.line_color = QColor(*line_color)
-            else:
-                shape.line_color = generateColorByText(label)
-
-            if fill_color:
-                shape.fill_color = QColor(*fill_color)
-            else:
-                shape.fill_color = generateColorByText(label)
-
             self.addLabel(shape)
+
         self.updateComboBox()
 
         if len(self.canvas.shapes) > 0:
@@ -1429,6 +1423,9 @@ class MainWindow(QMainWindow, WindowMixin):
             self.status("Loaded %s" % os.path.basename(unicodeFilePath))
             if self.EqualizeHist:
                 image=self.setEqualizeHistNew(image)
+
+            if self.denoise:
+                image = self.Denoise(image)
 
             self.image = image
             self.filePath = unicodeFilePath
@@ -1879,10 +1876,14 @@ class MainWindow(QMainWindow, WindowMixin):
                     results_box.append(j)
 
         results_box=np.array(results_box)
-        keep=weighted_nms(results_box)
-        for m in keep:
-            x, y, x2, y2, score = int(m[0]), int(m[1]), int(m[2]), int(m[3]), float(m[4])
-            shapes.append((self.classes_list[int(m[5])], [(x, y), (x2, y), (x2, y2), (x, y2)], None, None, False, 0, round(score, 2)))
+
+        box_nms=weighted_nms(results_box)
+        for box in box_nms:
+            x, y, x2, y2, score = int(box[0]), int(box[1]), int(box[2]), int(box[3]), float(box[4])
+            item = (self.classes_list[int(box[4])], [(x, y), (x2, y), (x2, y2), (x, y2)], None, None, False, 0, round(score, 2))
+            new_shape = box2Shape(*item)
+            if (self.shapeNMS(self.canvas.shapes, new_shape)):
+                shapes.append(item)
 
         self.loadLabels(shapes)
         self.setDirty()
@@ -2163,6 +2164,15 @@ class MainWindow(QMainWindow, WindowMixin):
             autoLabel.setText("autoLabel")
             self.fullyAutoMode = False
 
+    def reloadImage(self):
+        currIndex = self.mImgList.index(self.filePath)
+        filename = self.mImgList[currIndex]
+        self.loadFile(filename)
+
+    def toggleDenoise(self):
+        self.denoise = self.denoiseOption.isChecked()
+        self.reloadImage()
+
     def setEqualizeHistStatus(self):
         if self.EqualizeHistOption.isChecked():
             # if this button is checked
@@ -2170,6 +2180,8 @@ class MainWindow(QMainWindow, WindowMixin):
         else:
             # if this button is NOT checked
             self.EqualizeHist = False
+
+        self.reloadImage()
 
     def preProcess(self, img):
         # img = cv2.medianBlur(img, 3)
@@ -2188,7 +2200,8 @@ class MainWindow(QMainWindow, WindowMixin):
         s = image.bits().asstring(size.width() * size.height() * image.depth() // 8)
         img_arr = np.fromstring(s, dtype=np.uint8).reshape((size.height(), size.width(), image.depth() // 8))
 
-        B, G, R, t = cv2.split(img_arr)  # get single 8-bits channel
+        img = self.toRGB(img_arr)
+        R, G, B = cv2.split(img)  # get single 8-bits channel
         EB = self.preProcess(B)
         EG = self.preProcess(G)
         ER = self.preProcess(R)
@@ -2206,17 +2219,25 @@ class MainWindow(QMainWindow, WindowMixin):
 
         return max_percentile_pixel, min_percentile_pixel
 
+    def toRGB(self, image):
+        if image.shape[2] >= 3:
+            if image.shape[2] == 3:
+                B, G, R = cv2.split(image)  # get single 8-bits channel
+                image = cv2.merge((R, G, B))
+            elif image.shape[2] == 4:
+                B, G, R, t = cv2.split(image)  # get single 8-bits channel
+                image = cv2.merge((R, G, B))
+        elif image.shape[2] == 1:
+            image = cv2.merge((image, image, image))
+
+        return image
+
     def setEqualizeHistNew(self,image):
         size = image.size()
         s = image.bits().asstring(size.width() * size.height() * image.depth() // 8)
         img_arr = np.fromstring(s, dtype=np.uint8).reshape((size.height(), size.width(), image.depth() // 8))
 
-        if img_arr.shape[-1] == 1:
-            img = cv2.cvtColor(img_arr,cv2.COLOR_GRAY2RGB)
-
-        else:
-            B, G, R, t = cv2.split(img_arr)  # get single 8-bits channel
-            img=cv2.merge((R,G,B))
+        img = self.toRGB(img_arr)  # get single 8-bits channel
 
         hsv_image=cv2.cvtColor(img,cv2.COLOR_RGB2HSV)
         if hsv_image[:, :, 2].mean()>130:
@@ -2229,6 +2250,25 @@ class MainWindow(QMainWindow, WindowMixin):
 
         out = np.zeros(img.shape, img.dtype)
         cv2.normalize(img, out, 255 * 0.1, 255 * 0.9, cv2.NORM_MINMAX)
+
+        out = cv2.GaussianBlur(out, (7, 7), 0)
+
+        image = QtGui.QImage(out[:], out.shape[1], out.shape[0],
+                             out.shape[1] * out.shape[2],
+                             QtGui.QImage.Format_RGB888)
+
+        return image
+
+
+    def Denoise(self, image):
+        size = image.size()
+        s = image.bits().asstring(size.width() * size.height() * image.depth() // 8)
+        img_arr = np.fromstring(s, dtype=np.uint8).reshape((size.height(), size.width(), image.depth() // 8))
+
+        img = self.toRGB(img_arr)  # get single 8-bits channel
+
+        out = cv2.GaussianBlur(img, (3, 3), 0)
+
         image = QtGui.QImage(out[:], out.shape[1], out.shape[0],
                              out.shape[1] * out.shape[2],
                              QtGui.QImage.Format_RGB888)

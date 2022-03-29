@@ -9,7 +9,7 @@ except ImportError:
     from PyQt4.QtGui import *
     from PyQt4.QtCore import *
 
-from libs.utils.utils import distance
+from libs.utils.utils import distance, generateColorByText
 import sys
 
 DEFAULT_LINE_COLOR = QColor(0, 255, 0, 128)
@@ -242,3 +242,18 @@ class Shape(object):
             return (max_x - min_x) * (max_y - min_y)
         return 0
 
+def box2Shape(label, points, line_color=None, fill_color=None, difficult=False, distance=0, score=0):
+    shape = Shape(label)
+
+    for x, y in points:
+        shape.addPoint(QPointF(x, y))
+    shape.difficult = difficult
+    shape.distance = distance
+    shape.score = score
+    shape.close()
+
+    shape.line_color = QColor(*line_color) if line_color else generateColorByText(label)
+
+    shape.fill_color = QColor(*fill_color) if fill_color else generateColorByText(label)
+
+    return shape
