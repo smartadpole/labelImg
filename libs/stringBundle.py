@@ -57,8 +57,8 @@ class StringBundle:
 
     def __loadBundle(self, path):
         PROP_SEPERATOR = '='
-        # if path == ":/strings":
-        #     path = "resources/strings/strings.properties"
+        if path == ":/strings":
+            path = "resources/strings/strings.properties"
         f = QFile(path)
         if f.exists():
             if f.open(QIODevice.ReadOnly | QFile.Text):

@@ -95,7 +95,8 @@ def format_shape_qt(s):
                 fill_color=s.fill_color.getRgb(),
                 points=[(p.x(), p.y()) for p in s.points],
                 difficult = s.difficult,
-                distance = s.distance)
+                distance = s.distance,
+                score = s.score)
 
 
 class WindowMixin(object):
@@ -481,10 +482,17 @@ class MainWindow(QMainWindow, WindowMixin):
         self.lastLabel = None
         # Add option to enable/disable labels being displayed at the top of bounding boxes
         self.displayLabelOption = QAction(getStr('displayLabel'), self)
-        self.displayLabelOption.setShortcut("Ctrl+Shift+P")
+        self.displayLabelOption.setShortcut("Ctrl+Shift+L")
         self.displayLabelOption.setCheckable(True)
         self.displayLabelOption.setChecked(settings.get(SETTING_PAINT_LABEL, False))
         self.displayLabelOption.triggered.connect(self.togglePaintLabelsOption)
+
+        # Add option to enable/disable score being displayed at the top of bounding boxes
+        self.displayScoreOption = QAction(getStr('displayScore'), self)
+        self.displayScoreOption.setShortcut("Ctrl+Shift+P")
+        self.displayScoreOption.setCheckable(True)
+        self.displayScoreOption.setChecked(settings.get(SETTING_PAINT_SCORE, False))
+        self.displayScoreOption.triggered.connect(self.togglePaintScoresOption)
 
         # Full auto label controller
         self.FullyAutoLabelOption = QAction("Fully Auto Label Mode", self)
@@ -548,6 +556,7 @@ class MainWindow(QMainWindow, WindowMixin):
             self.autoSaving,
             self.singleClassMode,
             self.displayLabelOption,
+            self.displayScoreOption,
             self.FullyAutoLabelOption,
             self.EqualizeHistOption,
             labels, advancedMode, None,
@@ -1054,6 +1063,7 @@ class MainWindow(QMainWindow, WindowMixin):
 
     def addLabel(self, shape):
         shape.paintLabel = self.displayLabelOption.isChecked()
+        shape.paintScore = self.displayScoreOption.isChecked()
         item = HashableQListWidgetItem(shape.label)
         item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
         item.setCheckState(Qt.Checked)
@@ -1077,7 +1087,7 @@ class MainWindow(QMainWindow, WindowMixin):
 
     def loadLabels(self, shapes):
         s = []
-        for label, points, line_color, fill_color, difficult, distance in shapes:
+        for label, points, line_color, fill_color, difficult, distance, score in shapes:
             shape = Shape(label=label)
             for x, y in points:
 
@@ -1089,6 +1099,7 @@ class MainWindow(QMainWindow, WindowMixin):
                 shape.addPoint(QPointF(x, y))
             shape.difficult = difficult
             shape.distance = distance
+            shape.score = score
             shape.close()
             s.append(shape)
 
@@ -1870,8 +1881,8 @@ class MainWindow(QMainWindow, WindowMixin):
         results_box=np.array(results_box)
         keep=weighted_nms(results_box)
         for m in keep:
-            x,y,x2,y2=int(m[0]),int(m[1]),int(m[2]),int(m[3])
-            shapes.append((self.classes_list[int(m[4])], [(x, y), (x2, y), (x2, y2), (x, y2)], None, None, False, 0))
+            x, y, x2, y2, score = int(m[0]), int(m[1]), int(m[2]), int(m[3]), float(m[4])
+            shapes.append((self.classes_list[int(m[5])], [(x, y), (x2, y), (x2, y2), (x, y2)], None, None, False, 0, round(score, 2)))
 
         self.loadLabels(shapes)
         self.setDirty()
@@ -2137,6 +2148,10 @@ class MainWindow(QMainWindow, WindowMixin):
     def togglePaintLabelsOption(self):
         for shape in self.canvas.shapes:
             shape.paintLabel = self.displayLabelOption.isChecked()
+
+    def togglePaintScoresOption(self):
+        for shape in self.canvas.shapes:
+            shape.paintScore = self.displayScoreOption.isChecked()
 
     def toggleFullyAutoLabel(self):
         if self.FullyAutoLabelOption.isChecked():

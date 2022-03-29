@@ -38,14 +38,16 @@ class Shape(object):
     scale = 1.0
     labelFontSize = 8
 
-    def __init__(self, label=None, line_color=None, difficult=False, paintLabel=False, dist=0):
+    def __init__(self, label=None, line_color=None, difficult=False, paintLabel=False, paintScore=False, dist=0, score=0):
         self.label = label
         self.points = []
         self.fill = False
         self.selected = False
         self.difficult = difficult
         self.distance = dist
+        self.score = score
         self.paintLabel = paintLabel
+        self.paintScore = paintScore
 
         self._highlightIndex = None
         self._highlightMode = self.NEAR_VERTEX
@@ -130,6 +132,25 @@ class Shape(object):
                     if(min_y < min_y_label):
                         min_y += min_y_label
                     painter.drawText(min_x, min_y, self.label)
+
+            # Draw score number at the top-left
+            if self.paintScore:
+                max_x = 0
+                min_y = sys.maxsize
+                min_y_score = int(1.25 * self.labelFontSize)
+                for point in self.points:
+                    max_x = max(max_x, point.x())
+                    min_y = min(min_y, point.y())
+                if max_x != 0 and min_y != sys.maxsize:
+                    font = QFont()
+                    font.setPointSize(self.labelFontSize)
+                    font.setBold(True)
+                    painter.setFont(font)
+                    if(self.score == None):
+                        self.score = str(0)
+                    if(min_y < min_y_score):
+                        min_y += min_y_score
+                    painter.drawText(max_x, min_y, str(self.score))
 
             if self.fill:
                 color = self.select_fill_color if self.selected else self.fill_color

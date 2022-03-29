@@ -214,6 +214,8 @@ def weighted_nms(dets, nms_thres=0.45):
         wbox = np.sum((in_dets[:, :4] * weights[..., np.newaxis]), axis=0) \
                / np.sum(weights)
 
+        in_score = in_dets[0, 4]
+        wbox = np.append(wbox, in_score)
         in_class = in_dets[0, 5]
         wbox = np.append(wbox, in_class)
         weighted_boxes.append(wbox)

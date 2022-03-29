@@ -33,7 +33,7 @@ class YOLOv3(object):
         image = yoloPreProcess(image)
         input_name = self.session.get_inputs()[0].name
         outputs = self.session.run(None, {input_name: image})
-        boxes = post_processing(image, THRESHOLD_YOLOV3, 0.6, outputs)
+        boxes = post_processing(image, THRESHOLD_YOLOV3, 0.45, outputs)
 
 
         # # TODO : get rect
@@ -55,5 +55,5 @@ class YOLOv3(object):
                     x2 = x2 * oriX
                     x, y, x2, y2, score, label = int(x), int(y), int(x2), int(y2), float(score), int(label)
                     shapes.append((self.classes[label], [(x, y), (x2, y), (x2, y2), (x, y2)], None, None, False, 0))
-                    results_box.append([x, y, x2, y2,score,self.classes[label]])
+                    results_box.append([x, y, x2, y2, score, self.classes[label]])
         return shapes,results_box
