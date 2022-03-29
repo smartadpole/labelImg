@@ -9,7 +9,7 @@
 '''
 import os
 from libs.detector.ssd.onnxmodel import ONNXModel
-from libs.detector.yolov3.preprocess import pre_process as yoloPreProcess
+from libs.detector.yolov3.preprocess import preProcessPadding
 from libs.detector.yolov3.postprocess.postprocess import IMAGE_SIZE_YOLOV3, THRESHOLD_YOLOV3, post_processing,\
     load_class_names,plot_boxes_cv2
 import cv2
@@ -29,8 +29,7 @@ class YOLOv3(object):
     def forward(self, image):
         oriY = image.shape[0]
         oriX = image.shape[1]
-        image = cv2.resize(image, (IMAGE_SIZE_YOLOV3, IMAGE_SIZE_YOLOV3), interpolation=cv2.INTER_LINEAR)
-        image = yoloPreProcess(image)
+        image = preProcessPadding(image)
         input_name = self.session.get_inputs()[0].name
         outputs = self.session.run(None, {input_name: image})
         boxes = post_processing(image, THRESHOLD_YOLOV3, 0.45, outputs)
@@ -49,10 +48,13 @@ class YOLOv3(object):
                     if int(label) > len(self.classes)-1 or self.classes[int(label)] not in self.class_sel:
                         continue
 
-                    y = y * oriY
-                    y2 = y2 * oriY
-                    x = x * oriX
-                    x2 = x2 * oriX
+                    w = IMAGE_SIZE_YOLOV3 / max(oriX,oriY)
+
+                    y = (y * IMAGE_SIZE_YOLOV3 - (IMAGE_SIZE_YOLOV3-w*oriY)/2)/w
+                    y2 = (y2 * IMAGE_SIZE_YOLOV3 - (IMAGE_SIZE_YOLOV3-w*oriY)/2)/w
+                    x = (x * IMAGE_SIZE_YOLOV3 - (IMAGE_SIZE_YOLOV3-w*oriX)/2)/w
+                    x2 = (x2 * IMAGE_SIZE_YOLOV3 - (IMAGE_SIZE_YOLOV3-w*oriX)/2)/w
+
                     x, y, x2, y2, score, label = int(x), int(y), int(x2), int(y2), float(score), int(label)
                     shapes.append((self.classes[label], [(x, y), (x2, y), (x2, y2), (x, y2)], None, None, False, 0))
                     results_box.append([x, y, x2, y2, score, self.classes[label]])
