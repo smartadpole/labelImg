@@ -1880,7 +1880,7 @@ class MainWindow(QMainWindow, WindowMixin):
         box_nms=weighted_nms(results_box)
         for box in box_nms:
             x, y, x2, y2, score = int(box[0]), int(box[1]), int(box[2]), int(box[3]), float(box[4])
-            item = (self.classes_list[int(box[4])], [(x, y), (x2, y), (x2, y2), (x, y2)], None, None, False, 0, round(score, 2))
+            item = (self.classes_list[int(box[5])], [(x, y), (x2, y), (x2, y2), (x, y2)], None, None, False, 0, round(score, 2))
             new_shape = box2Shape(*item)
             if (self.shapeNMS(self.canvas.shapes, new_shape)):
                 shapes.append(item)
@@ -2250,8 +2250,6 @@ class MainWindow(QMainWindow, WindowMixin):
 
         out = np.zeros(img.shape, img.dtype)
         cv2.normalize(img, out, 255 * 0.1, 255 * 0.9, cv2.NORM_MINMAX)
-
-        out = cv2.GaussianBlur(out, (7, 7), 0)
 
         image = QtGui.QImage(out[:], out.shape[1], out.shape[0],
                              out.shape[1] * out.shape[2],
