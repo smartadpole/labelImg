@@ -10,7 +10,7 @@
 import os
 from libs.detector.ssd.onnxmodel import ONNXModel
 from libs.detector.yolov3.postprocess.postprocess import load_class_names
-from libs.detector.yolov5.preprocess import pre_process as yoloPreProcess
+from libs.detector.yolov5.preprocess import preProcessPadding
 from libs.detector.yolov5.postprocess.postprocess import PostProcessor_YOLOV5
 from libs.detector.yolov5.postprocess.postprocess import IMAGE_SIZE_YOLOV5, THRESHOLD_YOLOV5
 import cv2
@@ -30,10 +30,9 @@ class YOLOv5(object):
     def forward(self, image):
         oriY = image.shape[0]
         oriX = image.shape[1]
-        image = cv2.resize(image, (IMAGE_SIZE_YOLOV5, IMAGE_SIZE_YOLOV5))
-        image = yoloPreProcess(image)
+        image = preProcessPadding(image)
         out = self.net.forward(image)
-        results_batch = PostProcessor_YOLOV5(out,len(self.classes)+5)
+        results_batch = PostProcessor_YOLOV5(out[0], len(self.classes)+5)
 
         # TODO : get rect
         shapes = []
@@ -47,10 +46,13 @@ class YOLOv5(object):
                     if int(label)>len(self.classes)-1 or self.classes[int(label)] not in self.class_sel:
                         continue
 
-                    y = y / IMAGE_SIZE_YOLOV5 * oriY
-                    y2 = y2 / IMAGE_SIZE_YOLOV5 * oriY
-                    x = x / IMAGE_SIZE_YOLOV5 * oriX
-                    x2 = x2 / IMAGE_SIZE_YOLOV5 * oriX
+                    w = IMAGE_SIZE_YOLOV5 / max(oriX,oriY)
+
+                    y = (y * IMAGE_SIZE_YOLOV5 - (IMAGE_SIZE_YOLOV5-w*oriY)/2)/w
+                    y2 = (y2 * IMAGE_SIZE_YOLOV5 - (IMAGE_SIZE_YOLOV5-w*oriY)/2)/w
+                    x = (x * IMAGE_SIZE_YOLOV5 - (IMAGE_SIZE_YOLOV5-w*oriX)/2)/w
+                    x2 = (x2 * IMAGE_SIZE_YOLOV5 - (IMAGE_SIZE_YOLOV5-w*oriX)/2)/w
+
                     x, y, x2, y2, score, label = int(x), int(y), int(x2), int(y2), float(score), int(label)
                     shapes.append((self.classes[label], [(x, y), (x2, y), (x2, y2), (x, y2)], None, None, False, 0))
                     results_box.append([x, y, x2, y2,score,self.classes[label]])

@@ -80,8 +80,9 @@ class LabelFile(object):
             # Add Chris
             difficult = int(shape['difficult'])
             distance = int(shape['distance'])
+            score = float(shape['score'])
             bndbox = LabelFile.convertPoints2BndBox(points)
-            writer.addBndBox(bndbox[0], bndbox[1], bndbox[2], bndbox[3], label, difficult, distance)
+            writer.addBndBox(bndbox[0], bndbox[1], bndbox[2], bndbox[3], label, difficult, distance, score)
 
         writer.save(targetFile=filename)
         return

@@ -77,11 +77,12 @@ class PascalVocWriter:
         segmented.text = '0'
         return top
 
-    def addBndBox(self, xmin, ymin, xmax, ymax, name, difficult, distance):
+    def addBndBox(self, xmin, ymin, xmax, ymax, name, difficult, distance, score):
         bndbox = {'xmin': xmin, 'ymin': ymin, 'xmax': xmax, 'ymax': ymax}
         bndbox['name'] = name
         bndbox['difficult'] = difficult
         bndbox['distance'] = distance
+        bndbox['score'] = score
         self.boxlist.append(bndbox)
 
     def appendObjects(self, top):
@@ -101,10 +102,16 @@ class PascalVocWriter:
             difficult = SubElement(object_item, 'difficult')
             difficult.text = str( bool(each_object['difficult']) & 1 )
             distance = SubElement(object_item, 'distance')
+            score = SubElement(object_item, 'score')
             if 'distance' in each_object.keys():
                 distance.text = str(int(each_object['distance']))
             else:
                 distance.text = "0"
+
+            if 'score' in each_object.keys():
+                score.text = str(float(each_object['score']))
+            else:
+                score.text = "0"
             bndbox = SubElement(object_item, 'bndbox')
             xmin = SubElement(bndbox, 'xmin')
             xmin.text = str(each_object['xmin'])
@@ -146,13 +153,13 @@ class PascalVocReader:
     def getShapes(self):
         return self.shapes
 
-    def addShape(self, label, bndbox, difficult, distance):
+    def addShape(self, label, bndbox, difficult, distance, score):
         xmin = int(float(bndbox.find('xmin').text))
         ymin = int(float(bndbox.find('ymin').text))
         xmax = int(float(bndbox.find('xmax').text))
         ymax = int(float(bndbox.find('ymax').text))
         points = [(xmin, ymin), (xmax, ymin), (xmax, ymax), (xmin, ymax)]
-        self.shapes.append((label, points, None, None, difficult, distance))
+        self.shapes.append((label, points, None, None, difficult, distance, score))
 
     def parseXML(self):
         assert self.filepath.endswith(XML_EXT), "Unsupport file format"
@@ -174,7 +181,10 @@ class PascalVocReader:
             if object_iter.find('difficult') is not None:
                 difficult = bool(int(object_iter.find('difficult').text))
             distance = 0
+            score = 0
             if object_iter.find('distance') is not None:
                 distance = int(int(object_iter.find('distance').text))
-            self.addShape(label, bndbox, difficult, distance)
+            if object_iter.find('score') is not None:
+                score = float(float(object_iter.find('score').text))
+            self.addShape(label, bndbox, difficult, distance, score)
         return True

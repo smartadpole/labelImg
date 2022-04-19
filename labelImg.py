@@ -95,7 +95,8 @@ def format_shape_qt(s):
                 fill_color=s.fill_color.getRgb(),
                 points=[(p.x(), p.y()) for p in s.points],
                 difficult = s.difficult,
-                distance = s.distance)
+                distance = s.distance,
+                score = s.score)
 
 
 class WindowMixin(object):
@@ -482,10 +483,17 @@ class MainWindow(QMainWindow, WindowMixin):
         self.lastLabel = None
         # Add option to enable/disable labels being displayed at the top of bounding boxes
         self.displayLabelOption = QAction(getStr('displayLabel'), self)
-        self.displayLabelOption.setShortcut("Ctrl+Shift+P")
+        self.displayLabelOption.setShortcut("Ctrl+Shift+L")
         self.displayLabelOption.setCheckable(True)
         self.displayLabelOption.setChecked(settings.get(SETTING_PAINT_LABEL, False))
         self.displayLabelOption.triggered.connect(self.togglePaintLabelsOption)
+
+        # Add option to enable/disable score being displayed at the top of bounding boxes
+        self.displayScoreOption = QAction(getStr('displayScore'), self)
+        self.displayScoreOption.setShortcut("Ctrl+Shift+P")
+        self.displayScoreOption.setCheckable(True)
+        self.displayScoreOption.setChecked(settings.get(SETTING_PAINT_SCORE, False))
+        self.displayScoreOption.triggered.connect(self.togglePaintScoresOption)
 
         # Full auto label controller
         self.FullyAutoLabelOption = QAction("Fully Auto Label Mode", self)
@@ -556,6 +564,7 @@ class MainWindow(QMainWindow, WindowMixin):
             self.autoSaving,
             self.singleClassMode,
             self.displayLabelOption,
+            self.displayScoreOption,
             self.FullyAutoLabelOption,
             self.EqualizeHistOption,
             self.denoiseOption,
@@ -1063,6 +1072,7 @@ class MainWindow(QMainWindow, WindowMixin):
 
     def addLabel(self, shape):
         shape.paintLabel = self.displayLabelOption.isChecked()
+        shape.paintScore = self.displayScoreOption.isChecked()
         item = HashableQListWidgetItem(shape.label)
         item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
         item.setCheckState(Qt.Checked)
@@ -1086,14 +1096,15 @@ class MainWindow(QMainWindow, WindowMixin):
 
     def loadLabels(self, shapes):
         s = []
-        for label, points, line_color, fill_color, difficult, distance in shapes:
+        for label, points, line_color, fill_color, difficult, distance, score in shapes:
             for i, (x, y) in enumerate(points):
                 # Ensure the labels are within the bounds of the image. If not, fix them.
                 x, y, snapped = self.canvas.snapPointToCanvas(x, y)
                 points[i] = (x, y)
                 if snapped:
                     self.setDirty()
-            shape = box2Shape(label, points, line_color, fill_color, difficult, distance)
+
+            shape = box2Shape(label, points, line_color, fill_color, difficult, distance, score)
             s.append(shape)
             self.addLabel(shape)
 
@@ -1865,10 +1876,11 @@ class MainWindow(QMainWindow, WindowMixin):
                     results_box.append(j)
 
         results_box=np.array(results_box)
+
         box_nms=weighted_nms(results_box)
         for box in box_nms:
-            x,y,x2,y2=int(box[0]),int(box[1]),int(box[2]),int(box[3])
-            item = (self.classes_list[int(box[4])], [(x, y), (x2, y), (x2, y2), (x, y2)], None, None, False, 0)
+            x, y, x2, y2, score = int(box[0]), int(box[1]), int(box[2]), int(box[3]), float(box[4])
+            item = (self.classes_list[int(box[5])], [(x, y), (x2, y), (x2, y2), (x, y2)], None, None, False, 0, round(score, 2))
             new_shape = box2Shape(*item)
             if (self.shapeNMS(self.canvas.shapes, new_shape)):
                 shapes.append(item)
@@ -2138,6 +2150,10 @@ class MainWindow(QMainWindow, WindowMixin):
         for shape in self.canvas.shapes:
             shape.paintLabel = self.displayLabelOption.isChecked()
 
+    def togglePaintScoresOption(self):
+        for shape in self.canvas.shapes:
+            shape.paintScore = self.displayScoreOption.isChecked()
+
     def toggleFullyAutoLabel(self):
         if self.FullyAutoLabelOption.isChecked():
             # if this button is checked
@@ -2222,6 +2238,7 @@ class MainWindow(QMainWindow, WindowMixin):
         img_arr = np.fromstring(s, dtype=np.uint8).reshape((size.height(), size.width(), image.depth() // 8))
 
         img = self.toRGB(img_arr)  # get single 8-bits channel
+
         hsv_image=cv2.cvtColor(img,cv2.COLOR_RGB2HSV)
         if hsv_image[:, :, 2].mean()>130:
             return image
@@ -2233,8 +2250,6 @@ class MainWindow(QMainWindow, WindowMixin):
 
         out = np.zeros(img.shape, img.dtype)
         cv2.normalize(img, out, 255 * 0.1, 255 * 0.9, cv2.NORM_MINMAX)
-
-        out = cv2.GaussianBlur(out, (7, 7), 0)
 
         image = QtGui.QImage(out[:], out.shape[1], out.shape[0],
                              out.shape[1] * out.shape[2],
